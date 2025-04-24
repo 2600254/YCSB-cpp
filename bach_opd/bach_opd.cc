@@ -16,92 +16,92 @@
 #include <BACH/BACH.h>
 
 namespace {
-  const std::string PROP_NAME = "bachopd.dbname";
-  const std::string PROP_NAME_DEFAULT = "";
+//   const std::string PROP_NAME = "bachopd.dbname";
+//   const std::string PROP_NAME_DEFAULT = "";
 
-  const std::string PROP_FORMAT = "bachopd.format";
-  const std::string PROP_FORMAT_DEFAULT = "single";
+//   const std::string PROP_FORMAT = "bachopd.format";
+//   const std::string PROP_FORMAT_DEFAULT = "single";
 
-  const std::string PROP_MERGEUPDATE = "bachopd.mergeupdate";
-  const std::string PROP_MERGEUPDATE_DEFAULT = "false";
+//   const std::string PROP_MERGEUPDATE = "bachopd.mergeupdate";
+//   const std::string PROP_MERGEUPDATE_DEFAULT = "false";
 
-  const std::string PROP_DESTROY = "bachopd.destroy";
-  const std::string PROP_DESTROY_DEFAULT = "false";
+//   const std::string PROP_DESTROY = "bachopd.destroy";
+//   const std::string PROP_DESTROY_DEFAULT = "false";
 
-  const std::string PROP_COMPRESSION = "bachopd.compression";
-  const std::string PROP_COMPRESSION_DEFAULT = "no";
+//   const std::string PROP_COMPRESSION = "bachopd.compression";
+//   const std::string PROP_COMPRESSION_DEFAULT = "no";
 
-  const std::string PROP_MAX_BG_JOBS = "bachopd.max_background_jobs";
-  const std::string PROP_MAX_BG_JOBS_DEFAULT = "0";
+//   const std::string PROP_MAX_BG_JOBS = "bachopd.max_background_jobs";
+//   const std::string PROP_MAX_BG_JOBS_DEFAULT = "0";
 
-  const std::string PROP_TARGET_FILE_SIZE_BASE = "bachopd.target_file_size_base";
-  const std::string PROP_TARGET_FILE_SIZE_BASE_DEFAULT = "0";
+//   const std::string PROP_TARGET_FILE_SIZE_BASE = "bachopd.target_file_size_base";
+//   const std::string PROP_TARGET_FILE_SIZE_BASE_DEFAULT = "0";
 
-  const std::string PROP_TARGET_FILE_SIZE_MULT = "bachopd.target_file_size_multiplier";
-  const std::string PROP_TARGET_FILE_SIZE_MULT_DEFAULT = "0";
+//   const std::string PROP_TARGET_FILE_SIZE_MULT = "bachopd.target_file_size_multiplier";
+//   const std::string PROP_TARGET_FILE_SIZE_MULT_DEFAULT = "0";
 
-  const std::string PROP_MAX_BYTES_FOR_LEVEL_BASE = "bachopd.max_bytes_for_level_base";
-  const std::string PROP_MAX_BYTES_FOR_LEVEL_BASE_DEFAULT = "0";
+//   const std::string PROP_MAX_BYTES_FOR_LEVEL_BASE = "bachopd.max_bytes_for_level_base";
+//   const std::string PROP_MAX_BYTES_FOR_LEVEL_BASE_DEFAULT = "0";
 
-  const std::string PROP_WRITE_BUFFER_SIZE = "bachopd.write_buffer_size";
-  const std::string PROP_WRITE_BUFFER_SIZE_DEFAULT = "0";
+//   const std::string PROP_WRITE_BUFFER_SIZE = "bachopd.write_buffer_size";
+//   const std::string PROP_WRITE_BUFFER_SIZE_DEFAULT = "0";
 
-  const std::string PROP_MAX_WRITE_BUFFER = "bachopd.max_write_buffer_number";
-  const std::string PROP_MAX_WRITE_BUFFER_DEFAULT = "0";
+//   const std::string PROP_MAX_WRITE_BUFFER = "bachopd.max_write_buffer_number";
+//   const std::string PROP_MAX_WRITE_BUFFER_DEFAULT = "0";
 
-  const std::string PROP_COMPACTION_PRI = "bachopd.compaction_pri";
-  const std::string PROP_COMPACTION_PRI_DEFAULT = "-1";
+//   const std::string PROP_COMPACTION_PRI = "bachopd.compaction_pri";
+//   const std::string PROP_COMPACTION_PRI_DEFAULT = "-1";
 
-  const std::string PROP_MAX_OPEN_FILES = "bachopd.max_open_files";
-  const std::string PROP_MAX_OPEN_FILES_DEFAULT = "-1";
+//   const std::string PROP_MAX_OPEN_FILES = "bachopd.max_open_files";
+//   const std::string PROP_MAX_OPEN_FILES_DEFAULT = "-1";
 
-  const std::string PROP_L0_COMPACTION_TRIGGER = "bachopd.level0_file_num_compaction_trigger";
-  const std::string PROP_L0_COMPACTION_TRIGGER_DEFAULT = "0";
+//   const std::string PROP_L0_COMPACTION_TRIGGER = "bachopd.level0_file_num_compaction_trigger";
+//   const std::string PROP_L0_COMPACTION_TRIGGER_DEFAULT = "0";
 
-  const std::string PROP_L0_SLOWDOWN_TRIGGER = "bachopd.level0_slowdown_writes_trigger";
-  const std::string PROP_L0_SLOWDOWN_TRIGGER_DEFAULT = "0";
+//   const std::string PROP_L0_SLOWDOWN_TRIGGER = "bachopd.level0_slowdown_writes_trigger";
+//   const std::string PROP_L0_SLOWDOWN_TRIGGER_DEFAULT = "0";
 
-  const std::string PROP_L0_STOP_TRIGGER = "bachopd.level0_stop_writes_trigger";
-  const std::string PROP_L0_STOP_TRIGGER_DEFAULT = "0";
+//   const std::string PROP_L0_STOP_TRIGGER = "bachopd.level0_stop_writes_trigger";
+//   const std::string PROP_L0_STOP_TRIGGER_DEFAULT = "0";
 
-  const std::string PROP_USE_DIRECT_WRITE = "bachopd.use_direct_io_for_flush_compaction";
-  const std::string PROP_USE_DIRECT_WRITE_DEFAULT = "false";
+//   const std::string PROP_USE_DIRECT_WRITE = "bachopd.use_direct_io_for_flush_compaction";
+//   const std::string PROP_USE_DIRECT_WRITE_DEFAULT = "false";
 
-  const std::string PROP_USE_DIRECT_READ = "bachopd.use_direct_reads";
-  const std::string PROP_USE_DIRECT_READ_DEFAULT = "false";
+//   const std::string PROP_USE_DIRECT_READ = "bachopd.use_direct_reads";
+//   const std::string PROP_USE_DIRECT_READ_DEFAULT = "false";
 
-  const std::string PROP_USE_MMAP_WRITE = "bachopd.allow_mmap_writes";
-  const std::string PROP_USE_MMAP_WRITE_DEFAULT = "false";
+//   const std::string PROP_USE_MMAP_WRITE = "bachopd.allow_mmap_writes";
+//   const std::string PROP_USE_MMAP_WRITE_DEFAULT = "false";
 
-  const std::string PROP_USE_MMAP_READ = "bachopd.allow_mmap_reads";
-  const std::string PROP_USE_MMAP_READ_DEFAULT = "false";
+//   const std::string PROP_USE_MMAP_READ = "bachopd.allow_mmap_reads";
+//   const std::string PROP_USE_MMAP_READ_DEFAULT = "false";
 
-  const std::string PROP_CACHE_SIZE = "bachopd.cache_size";
-  const std::string PROP_CACHE_SIZE_DEFAULT = "0";
+//   const std::string PROP_CACHE_SIZE = "bachopd.cache_size";
+//   const std::string PROP_CACHE_SIZE_DEFAULT = "0";
 
-  const std::string PROP_COMPRESSED_CACHE_SIZE = "bachopd.compressed_cache_size";
-  const std::string PROP_COMPRESSED_CACHE_SIZE_DEFAULT = "0";
+//   const std::string PROP_COMPRESSED_CACHE_SIZE = "bachopd.compressed_cache_size";
+//   const std::string PROP_COMPRESSED_CACHE_SIZE_DEFAULT = "0";
 
-  const std::string PROP_BLOOM_BITS = "bachopd.bloom_bits";
-  const std::string PROP_BLOOM_BITS_DEFAULT = "0";
+//   const std::string PROP_BLOOM_BITS = "bachopd.bloom_bits";
+//   const std::string PROP_BLOOM_BITS_DEFAULT = "0";
 
-  const std::string PROP_INCREASE_PARALLELISM = "bachopd.increase_parallelism";
-  const std::string PROP_INCREASE_PARALLELISM_DEFAULT = "false";
+//   const std::string PROP_INCREASE_PARALLELISM = "bachopd.increase_parallelism";
+//   const std::string PROP_INCREASE_PARALLELISM_DEFAULT = "false";
 
-  const std::string PROP_OPTIMIZE_LEVELCOMP = "bachopd.optimize_level_style_compaction";
-  const std::string PROP_OPTIMIZE_LEVELCOMP_DEFAULT = "false";
+//   const std::string PROP_OPTIMIZE_LEVELCOMP = "bachopd.optimize_level_style_compaction";
+//   const std::string PROP_OPTIMIZE_LEVELCOMP_DEFAULT = "false";
 
-  const std::string PROP_OPTIONS_FILE = "bachopd.optionsfile";
-  const std::string PROP_OPTIONS_FILE_DEFAULT = "";
+//   const std::string PROP_OPTIONS_FILE = "bachopd.optionsfile";
+//   const std::string PROP_OPTIONS_FILE_DEFAULT = "";
 
-  const std::string PROP_ENV_URI = "bachopd.env_uri";
-  const std::string PROP_ENV_URI_DEFAULT = "";
+//   const std::string PROP_ENV_URI = "bachopd.env_uri";
+//   const std::string PROP_ENV_URI_DEFAULT = "";
 
-  const std::string PROP_FS_URI = "bachopd.fs_uri";
-  const std::string PROP_FS_URI_DEFAULT = "";
+//   const std::string PROP_FS_URI = "bachopd.fs_uri";
+//   const std::string PROP_FS_URI_DEFAULT = "";
 
-//   static std::shared_ptr<bach::Env> env_guard;
-//   static std::shared_ptr<bach::Cache> block_cache;
+// //   static std::shared_ptr<bach::Env> env_guard;
+// //   static std::shared_ptr<bach::Cache> block_cache;
 
 } // anonymous
 
