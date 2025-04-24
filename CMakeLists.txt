@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.10)
 project(ycsb-cpp LANGUAGES C CXX)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_BUILD_TYPE Release)
 set(CompilerFlags
@@ -42,10 +42,10 @@ target_include_directories(ycsb PRIVATE ${PROJECT_SOURCE_DIR})
 
 if(BIND_BACHOPDDB)
     message(STATUS "BIND_BACHOPDDB - ON")
-    file(GLOB_RECURSE YCSB_BACHOPD_SRC "/bach_opd/*.cc")
+    file(GLOB_RECURSE YCSB_BACHOPD_SRC "bach_opd/*.cc")
     target_sources(ycsb PRIVATE ${YCSB_BACHOPD_SRC})
-    target_include_directories(ycsb PRIVATE "/home/wjj/BACH-opd/include/" "/home/wjj/BACH-opd/include/dynamic_bitset/include")    
-    target_link_libraries(ycsb PRIVATE "/home/wjj/BACH-opd/build/libbach.so")
+    target_include_directories(ycsb PRIVATE "/home/wjj/Benchmark/BACH-opd/include/" "/home/wjj/Benchmark/BACH-opd/include/dynamic_bitset/include")    
+    target_link_libraries(ycsb PRIVATE "/home/wjj/Benchmark/BACH-opd/build/libbach.so")
     if(NOT MSVC)
         target_link_libraries(ycsb PRIVATE dl)
     endif()
