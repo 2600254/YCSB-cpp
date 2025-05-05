@@ -11,6 +11,8 @@
 #---------------------build config-------------------------
 
 # Database bindings
+BIND_ELASTICLSM ?= 0
+BIND_BACHOPD ?= 0
 BIND_WIREDTIGER ?= 0
 BIND_LEVELDB ?= 0
 BIND_ROCKSDB ?= 0
@@ -34,6 +36,32 @@ ifeq ($(DEBUG_BUILD), 1)
 else
 	CXXFLAGS += -O2
 	CPPFLAGS += -DNDEBUG
+endif
+
+ifeq ($(BIND_ELASTICLSM), 1)
+	ifeq ($(ELASTIC_LSM_DIR),)
+        $(error Please set the environment variable ELASTIC_LSM_DIR to the rootpath of elastic_lsm)
+	endif
+	ELASTIC_LSM_LIB_DIR ?= $(ELASTIC_LSM_DIR)
+	ELASTIC_LSM_INCLUDE_DIR ?= $(ELASTIC_LSM_DIR)/include
+	LDFLAGS += -L$(ELASTIC_LSM_LIB_DIR) -lrocksdb_elastic
+	CXXFLAGS += -I$(ELASTIC_LSM_INCLUDE_DIR)
+	SOURCES += $(wildcard elastic_lsm/*.cc)
+endif
+
+ifeq ($(BIND_BACHOPD), 1)
+	ifeq ($(BACHOPD_DIR),)
+        $(error Please set the environment variable BACHOPD_DIR to the rootpath of BACH-opd)
+	endif
+	BACHOPD_LIB_DIR ?= $(BACHOPD_DIR)/build \
+					   $(BACHOPD_DIR)/build/include/folly
+	BACHOPD_INCLUDE_DIR ?= $(BACHOPD_DIR)/include \
+						   $(BACHOPD_DIR)/include/dynamic_bitset/include \
+						   $(BACHOPD_DIR)/include/folly \
+						   $(BACHOPD_DIR)/build/include/folly
+	LDFLAGS += $(foreach dir,$(BACHOPD_LIB_DIR),-L$(dir)) -lbach-opd -lfolly
+	CXXFLAGS += $(foreach dir,$(BACHOPD_INCLUDE_DIR),-I$(dir))
+	SOURCES += $(wildcard bach_opd/*.cc)
 endif
 
 ifeq ($(BIND_WIREDTIGER), 1)
@@ -61,7 +89,12 @@ ifeq ($(BIND_SQLITE), 1)
 	SOURCES += $(wildcard sqlite/*.cc)
 endif
 
-CXXFLAGS += -std=c++17 -Wall -pthread $(EXTRA_CXXFLAGS) -I./
+ifeq ($(BIND_BACHOPD), 1)
+	CXXFLAGS += -std=c++20
+else
+	CXXFLAGS += -std=c++17
+endif 
+CXXFLAGS += -Wall -pthread $(EXTRA_CXXFLAGS) -I./
 LDFLAGS += $(EXTRA_LDFLAGS) -lpthread
 SOURCES += $(wildcard core/*.cc)
 OBJECTS += $(SOURCES:.cc=.o)

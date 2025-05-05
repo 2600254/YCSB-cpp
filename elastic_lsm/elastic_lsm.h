@@ -1,13 +1,13 @@
 //
-//  bach_opd.h
+//  elastic_lsm.h
 //  YCSB-cpp
 //
 //  Copyright (c) 2025 BACH-OPD HIT MDC GROUP
 //  Modifications Copyright 2025 BACH-OPD HIT MDC GROUP
 //
 
-#ifndef YCSB_C_BACH_OPD_H_
-#define YCSB_C_BACH_OPD_H_
+#ifndef YCSB_C_ELASTIC_LSM_H_
+#define YCSB_C_ELASTIC_LSM_H_
 
 #include <string>
 #include <mutex>
@@ -15,14 +15,14 @@
 #include "core/db.h"
 #include "utils/properties.h"
 
-#include <BACH/BACH.h>
+#include <rocksdb/elastic_lsm.h>
 
 namespace ycsbc {
 
-class BachopdDB : public DB{
+class ElasticLSMDB : public DB {
  public:
-  BachopdDB() {}
-  ~BachopdDB() {}
+  ElasticLSMDB() {}
+  ~ElasticLSMDB() {}
 
   void Init();
 
@@ -56,14 +56,15 @@ class BachopdDB : public DB{
   };
   RocksFormat format_;
 
-  void GetOptions(const utils::Properties &props, std::shared_ptr<BACH::Options> opt);
+  void GetOptions(const utils::Properties &props, rocksdb::Options *opt,
+                  std::vector<rocksdb::ColumnFamilyDescriptor> *cf_descs);
   static void SerializeRow(const std::vector<Field> &values, std::string &data);
   static void DeserializeRowFilter(std::vector<Field> &values, const char *p, const char *lim,
                                    const std::vector<std::string> &fields);
-  static void DeserializeRowFilter(std::vector<Field> &values, const BACH::Tuple &data,
+  static void DeserializeRowFilter(std::vector<Field> &values, const std::string &data,
                                    const std::vector<std::string> &fields);
   static void DeserializeRow(std::vector<Field> &values, const char *p, const char *lim);
-  static void DeserializeRow(std::vector<Field> &values, const BACH::Tuple &data);
+  static void DeserializeRow(std::vector<Field> &values, const std::string &data);
 
   Status ReadSingle(const std::string &table, const std::string &key,
                     const std::vector<std::string> *fields, std::vector<Field> &result);
@@ -78,26 +79,28 @@ class BachopdDB : public DB{
                       std::vector<Field> &values);
   Status DeleteSingle(const std::string &table, const std::string &key);
 
-  Status (BachopdDB::*method_read_)(const std::string &, const std:: string &,
+  Status (ElasticLSMDB::*method_read_)(const std::string &, const std:: string &,
                                     const std::vector<std::string> *, std::vector<Field> &);
-  Status (BachopdDB::*method_scan_)(const std::string &, const std::string &,
+  Status (ElasticLSMDB::*method_scan_)(const std::string &, const std::string &,
                                     int, const std::vector<std::string> *,
                                     std::vector<std::vector<Field>> &);
-  Status (BachopdDB::*method_update_)(const std::string &, const std::string &,
+  Status (ElasticLSMDB::*method_update_)(const std::string &, const std::string &,
                                       std::vector<Field> &);
-  Status (BachopdDB::*method_insert_)(const std::string &, const std::string &,
+  Status (ElasticLSMDB::*method_insert_)(const std::string &, const std::string &,
                                       std::vector<Field> &);
-  Status (BachopdDB::*method_delete_)(const std::string &, const std::string &);
+  Status (ElasticLSMDB::*method_delete_)(const std::string &, const std::string &);
 
   int fieldcount_;
 
-  static std::vector<BACH::DB *> cf_handles_;
-  static std::unique_ptr<BACH::DB> db_;
+  static std::vector<rocksdb::ColumnFamilyHandle *> cf_handles_;
+  static rocksdb::DB *db_;
   static int ref_cnt_;
   static std::mutex mu_;
 };
 
-DB *NewBachopdDB();
+DB *NewElasticLSMDB();
 
-} //ycsbc
-#endif //YCSB_C_BACH_OPD_H_
+} // ycsbc
+
+#endif // YCSB_C_ELASTIC_LSM_H_
+

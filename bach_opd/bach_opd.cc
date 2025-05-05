@@ -13,525 +13,267 @@
 #include "utils/utils.h"
 #include "bach_opd.h"
 
-#include <BACH/BACH.h>
+#include "BACH/BACH.h"
+#include "BACH/utils/types.h"
 
 namespace {
 //   const std::string PROP_NAME = "bachopd.dbname";
 //   const std::string PROP_NAME_DEFAULT = "";
 
-//   const std::string PROP_FORMAT = "bachopd.format";
-//   const std::string PROP_FORMAT_DEFAULT = "single";
+  const std::string PROP_STORAGE_DIR = "bachopd.storage_dir";
+  const std::string PROP_STORAGE_DIR_DEFAULT = "/home/wjj/Benchmark/YCSB-cpp/db";
 
-//   const std::string PROP_MERGEUPDATE = "bachopd.mergeupdate";
-//   const std::string PROP_MERGEUPDATE_DEFAULT = "false";
+  const std::string PROP_MERGING_STRATEGY = "bachopd.merging_strategy";
+  const std::string PROP_MERGING_STRATEGY_DEFAULT = "ELASTIC";
 
-//   const std::string PROP_DESTROY = "bachopd.destroy";
-//   const std::string PROP_DESTROY_DEFAULT = "false";
+  const std::string PROP_MEM_TABLE_MAX_SIZE = "bachopd.memtable_max_size"; 
+  const std::string PROP_MEM_TABLE_MAX_SIZE_DEFAULT = "1048576";
 
-//   const std::string PROP_COMPRESSION = "bachopd.compression";
-//   const std::string PROP_COMPRESSION_DEFAULT = "no";
+  const std::string PROP_LEVEL_0_MAX_SIZE = "bachopd.level_0_max_size";
+  const std::string PROP_LEVEL_0_MAX_SIZE_DEFAULT = "536870912";
 
-//   const std::string PROP_MAX_BG_JOBS = "bachopd.max_background_jobs";
-//   const std::string PROP_MAX_BG_JOBS_DEFAULT = "0";
+  const std::string PROP_VERTEX_PROPERTY_MAX_SIZE = "bachopd.vertex_max_size";
+  const std::string PROP_VERTEX_PROPERTY_MAX_SIZE_DEFAULT = "67108864";
 
-//   const std::string PROP_TARGET_FILE_SIZE_BASE = "bachopd.target_file_size_base";
-//   const std::string PROP_TARGET_FILE_SIZE_BASE_DEFAULT = "0";
+  const std::string PROP_MEMORY_MERGE_NUM = "bachopd.memory_merge_num";
+  const std::string PROP_MEMORY_MERGE_NUM_DEFAULT = "8192";
 
-//   const std::string PROP_TARGET_FILE_SIZE_MULT = "bachopd.target_file_size_multiplier";
-//   const std::string PROP_TARGET_FILE_SIZE_MULT_DEFAULT = "0";
+  const std::string PROP_FILE_MERGE_NUM = "bachopd.file_merge_num";
+  const std::string PROP_FILE_MERGE_NUM_DEFAULT = "32";
 
-//   const std::string PROP_MAX_BYTES_FOR_LEVEL_BASE = "bachopd.max_bytes_for_level_base";
-//   const std::string PROP_MAX_BYTES_FOR_LEVEL_BASE_DEFAULT = "0";
+  const std::string PROP_READ_BUFFER_SIZE = "bachopd.read_buffer_size";
+  const std::string PROP_READ_BUFFER_SIZE_DEFAULT = "1048576";
 
-//   const std::string PROP_WRITE_BUFFER_SIZE = "bachopd.write_buffer_size";
-//   const std::string PROP_WRITE_BUFFER_SIZE_DEFAULT = "0";
+  const std::string PROP_WRITE_BUFFER_SIZE = "bachopd.write_buffer_size";
+  const std::string PROP_WRITE_BUFFER_SIZE_DEFAULT = "1048576";
 
-//   const std::string PROP_MAX_WRITE_BUFFER = "bachopd.max_write_buffer_number";
-//   const std::string PROP_MAX_WRITE_BUFFER_DEFAULT = "0";
+  const std::string PROP_NUM_OF_COMPACTION_THREAD = "bachopd.num_of_compaction_thread";
+  const std::string PROP_NUM_OF_COMPACTION_THREAD_DEFAULT = "16";
 
-//   const std::string PROP_COMPACTION_PRI = "bachopd.compaction_pri";
-//   const std::string PROP_COMPACTION_PRI_DEFAULT = "-1";
+  const std::string PROP_QUERY_LIST_SIZE = "bachopd.query_list_size";
+  const std::string PROP_QUERY_LIST_SIZE_DEFAULT = "160";
 
-//   const std::string PROP_MAX_OPEN_FILES = "bachopd.max_open_files";
-//   const std::string PROP_MAX_OPEN_FILES_DEFAULT = "-1";
+  const std::string PROP_MAX_FILE_READER_CACHE_SIZE = "bachopd.max_file_reader_cache_size";
+  const std::string PROP_MAX_FILE_READER_CACHE_SIZE_DEFAULT = "0";
 
-//   const std::string PROP_L0_COMPACTION_TRIGGER = "bachopd.level0_file_num_compaction_trigger";
-//   const std::string PROP_L0_COMPACTION_TRIGGER_DEFAULT = "0";
+  const std::string PROP_MAX_WORKER_THREAD = "bachopd.max_worker_thread";
+  const std::string PROP_MAX_WORKER_THREAD_DEFAULT = "16";
 
-//   const std::string PROP_L0_SLOWDOWN_TRIGGER = "bachopd.level0_slowdown_writes_trigger";
-//   const std::string PROP_L0_SLOWDOWN_TRIGGER_DEFAULT = "0";
+  const std::string PROP_FALSE_POSITIVE = "bachopd.false_positive";
+  const std::string PROP_FALSE_POSITIVE_DEFAULT = "0.01";
 
-//   const std::string PROP_L0_STOP_TRIGGER = "bachopd.level0_stop_writes_trigger";
-//   const std::string PROP_L0_STOP_TRIGGER_DEFAULT = "0";
+  const std::string PROP_MAX_LEVEL = "bachopd.max_level";
+  const std::string PROP_MAX_LEVEL_DEFAULT = "5";
 
-//   const std::string PROP_USE_DIRECT_WRITE = "bachopd.use_direct_io_for_flush_compaction";
-//   const std::string PROP_USE_DIRECT_WRITE_DEFAULT = "false";
+  const std::string PROP_LEVEL_SIZE_RITIO = "bachopd.level_size_ritio";
+  const std::string PROP_LEVEL_SIZE_RITIO_DEFAULT = "10";
 
-//   const std::string PROP_USE_DIRECT_READ = "bachopd.use_direct_reads";
-//   const std::string PROP_USE_DIRECT_READ_DEFAULT = "false";
+  const std::string PROP_MAX_BLOCK_SIZE = "bachopd.max_block_size";
+  const std::string PROP_MAX_BLOCK_SIZE_DEFAULT = "4096";
 
-//   const std::string PROP_USE_MMAP_WRITE = "bachopd.allow_mmap_writes";
-//   const std::string PROP_USE_MMAP_WRITE_DEFAULT = "false";
-
-//   const std::string PROP_USE_MMAP_READ = "bachopd.allow_mmap_reads";
-//   const std::string PROP_USE_MMAP_READ_DEFAULT = "false";
-
-//   const std::string PROP_CACHE_SIZE = "bachopd.cache_size";
-//   const std::string PROP_CACHE_SIZE_DEFAULT = "0";
-
-//   const std::string PROP_COMPRESSED_CACHE_SIZE = "bachopd.compressed_cache_size";
-//   const std::string PROP_COMPRESSED_CACHE_SIZE_DEFAULT = "0";
-
-//   const std::string PROP_BLOOM_BITS = "bachopd.bloom_bits";
-//   const std::string PROP_BLOOM_BITS_DEFAULT = "0";
-
-//   const std::string PROP_INCREASE_PARALLELISM = "bachopd.increase_parallelism";
-//   const std::string PROP_INCREASE_PARALLELISM_DEFAULT = "false";
-
-//   const std::string PROP_OPTIMIZE_LEVELCOMP = "bachopd.optimize_level_style_compaction";
-//   const std::string PROP_OPTIMIZE_LEVELCOMP_DEFAULT = "false";
-
-//   const std::string PROP_OPTIONS_FILE = "bachopd.optionsfile";
-//   const std::string PROP_OPTIONS_FILE_DEFAULT = "";
-
-//   const std::string PROP_ENV_URI = "bachopd.env_uri";
-//   const std::string PROP_ENV_URI_DEFAULT = "";
-
-//   const std::string PROP_FS_URI = "bachopd.fs_uri";
-//   const std::string PROP_FS_URI_DEFAULT = "";
-
-// //   static std::shared_ptr<bach::Env> env_guard;
-// //   static std::shared_ptr<bach::Cache> block_cache;
+  const std::string PROP_MEMORY_MERGE_IN_TUPLE = "bachopd.memory_merge_in_tuple";
+  const std::string PROP_MEMORY_MERGE_IN_TUPLE_DEFAULT = "2048";
 
 } // anonymous
 
 namespace ycsbc {
 
-// std::vector<BACH::ColumnFamilyHandle *> BachopdDB::cf_handles_;
-// BACH::DB *BachopdDB::db_ = nullptr;
-// int BachopdDB::ref_cnt_ = 0;
-// std::mutex BachopdDB::mu_;
+std::vector<BACH::DB *> BachopdDB::cf_handles_;
+std::unique_ptr<BACH::DB> BachopdDB::db_;
+int BachopdDB::ref_cnt_ = 0;
+std::mutex BachopdDB::mu_;
+BACH::idx_t column_num = 2;
 
-// void BachopdDB::Init() {
-// // merge operator disabled by default due to link error
-// #ifdef USE_MERGEUPDATE
-//   class YCSBUpdateMerge : public BACH::AssociativeMergeOperator {
-//    public:
-//     virtual bool Merge(const BACH::Slice &key, const BACH::Slice *existing_value,
-//                        const BACH::Slice &value, std::string *new_value,
-//                        BACH::Logger *logger) const override {
-//       assert(existing_value);
+void BachopdDB::Init() {
+  const std::lock_guard<std::mutex> lock(mu_);
+  const utils::Properties &props = *props_;
+  fieldcount_ = std::stoi(props.GetProperty(CoreWorkload::FIELD_COUNT_PROPERTY,
+                                            CoreWorkload::FIELD_COUNT_DEFAULT));
+  ref_cnt_++;
+  if (db_) {
+    return;
+  }
+  const std::string &db_path = props.GetProperty(PROP_STORAGE_DIR, PROP_STORAGE_DIR_DEFAULT);
+  if (db_path == "") {
+    throw utils::Exception("BachOpd db path is missing");
+  }
+  std::shared_ptr<BACH::Options> opt = std::make_shared<BACH::Options>();
+  GetOptions(props, opt);
 
-//       std::vector<Field> values;
-//       const char *p = existing_value->data();
-//       const char *lim = p + existing_value->size();
-//       DeserializeRow(values, p, lim);
+  db_ = std::make_unique<BACH::DB>(opt, column_num);
+}
 
-//       std::vector<Field> new_values;
-//       p = value.data();
-//       lim = p + value.size();
-//       DeserializeRow(new_values, p, lim);
+void BachopdDB::Cleanup() { 
+  const std::lock_guard<std::mutex> lock(mu_);
+}
 
-//       for (Field &new_field : new_values) {
-//         bool found = false;
-//         for (Field &field : values) {
-//           if (field.name == new_field.name) {
-//             found = true;
-//             field.value = new_field.value;
-//             break;
-//           }
-//         }
-//         if (!found) {
-//           values.push_back(new_field);
-//         }
-//       }
+void BachopdDB::GetOptions(const utils::Properties &props, std::shared_ptr<BACH::Options> opt) {
+  opt->STORAGE_DIR = props.GetProperty(PROP_STORAGE_DIR, PROP_STORAGE_DIR_DEFAULT);
+  std::string merging_strategy = props.GetProperty(PROP_MERGING_STRATEGY, PROP_MERGING_STRATEGY_DEFAULT);
+  if(merging_strategy == "ELASTIC"){
+    opt->MERGING_STRATEGY = BACH::Options::MergingStrategy::ELASTIC;
+  }else if (merging_strategy == "TIERING"){
+    opt->MERGING_STRATEGY = BACH::Options::MergingStrategy::TIERING;
+  }else if (merging_strategy == "LEVELING"){
+    opt->MERGING_STRATEGY = BACH::Options::MergingStrategy::LEVELING;
+  }else {
+    throw utils::Exception("Unknown merging strategy default to ELASTIC");
+    opt->MERGING_STRATEGY = BACH::Options::MergingStrategy::ELASTIC;
+  }
 
-//       SerializeRow(values, *new_value);
-//       return true;
-//     }
+  size_t memtable_max_size = std::stoul(props.GetProperty(PROP_MEM_TABLE_MAX_SIZE, PROP_MEM_TABLE_MAX_SIZE_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = memtable_max_size;
 
-//     virtual const char *Name() const override {
-//       return "YCSBUpdateMerge";
-//     }
-//   };
-// #endif
-//   const std::lock_guard<std::mutex> lock(mu_);
+  size_t level_0_max_size = std::stoul(props.GetProperty(PROP_LEVEL_0_MAX_SIZE, PROP_LEVEL_0_MAX_SIZE_DEFAULT));
+  opt->LEVEL_0_MAX_SIZE = level_0_max_size;
 
-//   const utils::Properties &props = *props_;
-//   const std::string format = props.GetProperty(PROP_FORMAT, PROP_FORMAT_DEFAULT);
-//   if (format == "single") {
-//     format_ = kSingleRow;
-//     method_read_ = &BachopdDB::ReadSingle;
-//     method_scan_ = &BachopdDB::ScanSingle;
-//     method_update_ = &BachopdDB::UpdateSingle;
-//     method_insert_ = &BachopdDB::InsertSingle;
-//     method_delete_ = &BachopdDB::DeleteSingle;
-// #ifdef USE_MERGEUPDATE
-//     if (props.GetProperty(PROP_MERGEUPDATE, PROP_MERGEUPDATE_DEFAULT) == "true") {
-//       method_update_ = &BachopdDB::MergeSingle;
-//     }
-// #endif
-//   } else {
-//     throw utils::Exception("unknown format");
-//   }
-//   fieldcount_ = std::stoi(props.GetProperty(CoreWorkload::FIELD_COUNT_PROPERTY,
-//                                             CoreWorkload::FIELD_COUNT_DEFAULT));
+  size_t vertex_max_size = std::stoul(props.GetProperty(PROP_VERTEX_PROPERTY_MAX_SIZE, PROP_VERTEX_PROPERTY_MAX_SIZE_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = vertex_max_size;
 
-//   ref_cnt_++;
-//   if (db_) {
-//     return;
-//   }
+  BACH::vertex_t memory_merge_num = std::stoul(props.GetProperty(PROP_MEMORY_MERGE_NUM, PROP_MEMORY_MERGE_NUM_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = memory_merge_num;
 
-//   const std::string &db_path = props.GetProperty(PROP_NAME, PROP_NAME_DEFAULT);
-//   if (db_path == "") {
-//     throw utils::Exception("RocksDB db path is missing");
-//   }
+  BACH::vertex_t file_merge_num = std::stoul(props.GetProperty(PROP_FILE_MERGE_NUM, PROP_FILE_MERGE_NUM_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = file_merge_num;
 
-//   BACH::Options opt;
-//   opt.create_if_missing = true;
-//   std::vector<BACH::ColumnFamilyDescriptor> cf_descs;
-//   GetOptions(props, &opt, &cf_descs);
-// #ifdef USE_MERGEUPDATE
-//   opt.merge_operator.reset(new YCSBUpdateMerge);
-// #endif
+  size_t read_buffer_size = std::stoul(props.GetProperty(PROP_READ_BUFFER_SIZE, PROP_READ_BUFFER_SIZE_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = read_buffer_size;
 
-//   BACH::Status s;
-//   if (props.GetProperty(PROP_DESTROY, PROP_DESTROY_DEFAULT) == "true") {
-//     s = BACH::DestroyDB(db_path, opt);
-//     if (!s.ok()) {
-//       throw utils::Exception(std::string("RocksDB DestroyDB: ") + s.ToString());
-//     }
-//   }
-//   if (cf_descs.empty()) {
-//     s = BACH::DB::Open(opt, db_path, &db_);
-//   } else {
-//     s = BACH::DB::Open(opt, db_path, cf_descs, &cf_handles_, &db_);
-//   }
-//   if (!s.ok()) {
-//     throw utils::Exception(std::string("RocksDB Open: ") + s.ToString());
-//   }
-// }
+  size_t write_buffer_size = std::stoul(props.GetProperty(PROP_WRITE_BUFFER_SIZE, PROP_WRITE_BUFFER_SIZE_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = write_buffer_size;
 
-// void BachopdDB::Cleanup() { 
-//   const std::lock_guard<std::mutex> lock(mu_);
-//   if (--ref_cnt_) {
-//     return;
-//   }
-//   for (size_t i = 0; i < cf_handles_.size(); i++) {
-//     if (cf_handles_[i] != nullptr) {
-//       db_->DestroyColumnFamilyHandle(cf_handles_[i]);
-//       cf_handles_[i] = nullptr;
-//     }
-//   }
-//   delete db_;
-// }
+  size_t num_of_compaction_thread = std::stoul(props.GetProperty(PROP_NUM_OF_COMPACTION_THREAD, PROP_NUM_OF_COMPACTION_THREAD_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = num_of_compaction_thread;
 
-// void BachopdDB::GetOptions(const utils::Properties &props, BACH::Options *opt,
-//                            std::vector<BACH::ColumnFamilyDescriptor> *cf_descs) {
-//   std::string env_uri = props.GetProperty(PROP_ENV_URI, PROP_ENV_URI_DEFAULT);
-//   std::string fs_uri = props.GetProperty(PROP_FS_URI, PROP_FS_URI_DEFAULT);
-//   BACH::Env* env =  BACH::Env::Default();;
-//   if (!env_uri.empty() || !fs_uri.empty()) {
-//     BACH::Status s = BACH::Env::CreateFromUri(BACH::ConfigOptions(),
-//                                                     env_uri, fs_uri, &env, &env_guard);
-//     if (!s.ok()) {
-//       throw utils::Exception(std::string("RocksDB CreateFromUri: ") + s.ToString());
-//     }
-//     opt->env = env;
-//   }
+  size_t query_list_size = std::stoul(props.GetProperty(PROP_QUERY_LIST_SIZE, PROP_QUERY_LIST_SIZE_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = query_list_size;
 
-//   const std::string options_file = props.GetProperty(PROP_OPTIONS_FILE, PROP_OPTIONS_FILE_DEFAULT);
-//   if (options_file != "") {
-//     BACH::ConfigOptions config_options;
-//     config_options.ignore_unknown_options = false;
-//     config_options.input_strings_escaped = true;
-//     config_options.env = env;
-//     BACH::Status s = BACH::LoadOptionsFromFile(config_options, options_file, opt, cf_descs);
-//     if (!s.ok()) {
-//       throw utils::Exception(std::string("RocksDB LoadOptionsFromFile: ") + s.ToString());
-//     }
-//   } else {
-//     const std::string compression_type = props.GetProperty(PROP_COMPRESSION,
-//                                                            PROP_COMPRESSION_DEFAULT);
-//     if (compression_type == "no") {
-//       opt->compression = BACH::kNoCompression;
-//     } else if (compression_type == "snappy") {
-//       opt->compression = BACH::kSnappyCompression;
-//     } else if (compression_type == "zlib") {
-//       opt->compression = BACH::kZlibCompression;
-//     } else if (compression_type == "bzip2") {
-//       opt->compression = BACH::kBZip2Compression;
-//     } else if (compression_type == "lz4") {
-//       opt->compression = BACH::kLZ4Compression;
-//     } else if (compression_type == "lz4hc") {
-//       opt->compression = BACH::kLZ4HCCompression;
-//     } else if (compression_type == "xpress") {
-//       opt->compression = BACH::kXpressCompression;
-//     } else if (compression_type == "zstd") {
-//       opt->compression = BACH::kZSTD;
-//     } else {
-//       throw utils::Exception("Unknown compression type");
-//     }
+  size_t max_file_reader_cache_size = std::stoul(props.GetProperty(PROP_MAX_FILE_READER_CACHE_SIZE, PROP_MAX_FILE_READER_CACHE_SIZE_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = max_file_reader_cache_size;
 
-//     int val = std::stoi(props.GetProperty(PROP_MAX_BG_JOBS, PROP_MAX_BG_JOBS_DEFAULT));
-//     if (val != 0) {
-//       opt->max_background_jobs = val;
-//     }
-//     val = std::stoi(props.GetProperty(PROP_TARGET_FILE_SIZE_BASE, PROP_TARGET_FILE_SIZE_BASE_DEFAULT));
-//     if (val != 0) {
-//       opt->target_file_size_base = val;
-//     }
-//     val = std::stoi(props.GetProperty(PROP_TARGET_FILE_SIZE_MULT, PROP_TARGET_FILE_SIZE_MULT_DEFAULT));
-//     if (val != 0) {
-//       opt->target_file_size_multiplier = val;
-//     }
-//     val = std::stoi(props.GetProperty(PROP_MAX_BYTES_FOR_LEVEL_BASE, PROP_MAX_BYTES_FOR_LEVEL_BASE_DEFAULT));
-//     if (val != 0) {
-//       opt->max_bytes_for_level_base = val;
-//     }
-//     val = std::stoi(props.GetProperty(PROP_WRITE_BUFFER_SIZE, PROP_WRITE_BUFFER_SIZE_DEFAULT));
-//     if (val != 0) {
-//       opt->write_buffer_size = val;
-//     }
-//     val = std::stoi(props.GetProperty(PROP_MAX_WRITE_BUFFER, PROP_MAX_WRITE_BUFFER_DEFAULT));
-//     if (val != 0) {
-//       opt->max_write_buffer_number = val;
-//     }
-//     val = std::stoi(props.GetProperty(PROP_COMPACTION_PRI, PROP_COMPACTION_PRI_DEFAULT));
-//     if (val != -1) {
-//       opt->compaction_pri = static_cast<BACH::CompactionPri>(val);
-//     }
-//     val = std::stoi(props.GetProperty(PROP_MAX_OPEN_FILES, PROP_MAX_OPEN_FILES_DEFAULT));
-//     if (val != 0) {
-//       opt->max_open_files = val;
-//     }
+  size_t max_worker_thread = std::stoul(props.GetProperty(PROP_MAX_WORKER_THREAD, PROP_MAX_WORKER_THREAD_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = max_worker_thread;
 
-//     val = std::stoi(props.GetProperty(PROP_L0_COMPACTION_TRIGGER, PROP_L0_COMPACTION_TRIGGER_DEFAULT));
-//     if (val != 0) {
-//       opt->level0_file_num_compaction_trigger = val;
-//     }
-//     val = std::stoi(props.GetProperty(PROP_L0_SLOWDOWN_TRIGGER, PROP_L0_SLOWDOWN_TRIGGER_DEFAULT));
-//     if (val != 0) {
-//       opt->level0_slowdown_writes_trigger = val;
-//     }
-//     val = std::stoi(props.GetProperty(PROP_L0_STOP_TRIGGER, PROP_L0_STOP_TRIGGER_DEFAULT));
-//     if (val != 0) {
-//       opt->level0_stop_writes_trigger = val;
-//     }
+  double false_positive = std::stod(props.GetProperty(PROP_FALSE_POSITIVE, PROP_FALSE_POSITIVE_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = false_positive;
 
-//     if (props.GetProperty(PROP_USE_DIRECT_WRITE, PROP_USE_DIRECT_WRITE_DEFAULT) == "true") {
-//       opt->use_direct_io_for_flush_and_compaction = true;
-//     }
-//     if (props.GetProperty(PROP_USE_DIRECT_READ, PROP_USE_DIRECT_READ_DEFAULT) == "true") {
-//       opt->use_direct_reads = true;
-//     }
-//     if (props.GetProperty(PROP_USE_MMAP_WRITE, PROP_USE_MMAP_WRITE_DEFAULT) == "true") {
-//       opt->allow_mmap_writes = true;
-//     }
-//     if (props.GetProperty(PROP_USE_MMAP_READ, PROP_USE_MMAP_READ_DEFAULT) == "true") {
-//       opt->allow_mmap_reads = true;
-//     }
+  size_t max_level = std::stoul(props.GetProperty(PROP_MAX_LEVEL, PROP_MAX_LEVEL_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = max_level;
 
-//     BACH::BlockBasedTableOptions table_options;
-//     size_t cache_size = std::stoul(props.GetProperty(PROP_CACHE_SIZE, PROP_CACHE_SIZE_DEFAULT));
-//     if (cache_size > 0) {
-//       block_cache = BACH::NewLRUCache(cache_size);
-//       table_options.block_cache = block_cache;
-//     }
-// #if ROCKSDB_MAJOR < 8
-//     size_t compressed_cache_size = std::stoul(props.GetProperty(PROP_COMPRESSED_CACHE_SIZE,
-//                                                                 PROP_COMPRESSED_CACHE_SIZE_DEFAULT));
-//     if (compressed_cache_size > 0) {
-//       block_cache_compressed = BACH::NewLRUCache(compressed_cache_size);
-//       table_options.block_cache_compressed = block_cache_compressed;
-//     }
-// #endif
-//     int bloom_bits = std::stoul(props.GetProperty(PROP_BLOOM_BITS, PROP_BLOOM_BITS_DEFAULT));
-//     if (bloom_bits > 0) {
-//       table_options.filter_policy.reset(BACH::NewBloomFilterPolicy(bloom_bits));
-//     }
-//     opt->table_factory.reset(BACH::NewBlockBasedTableFactory(table_options));
+  size_t level_size_ritio = std::stoul(props.GetProperty(PROP_LEVEL_SIZE_RITIO, PROP_LEVEL_SIZE_RITIO_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = level_size_ritio;
 
-//     if (props.GetProperty(PROP_INCREASE_PARALLELISM, PROP_INCREASE_PARALLELISM_DEFAULT) == "true") {
-//       opt->IncreaseParallelism();
-//     }
-//     if (props.GetProperty(PROP_OPTIMIZE_LEVELCOMP, PROP_OPTIMIZE_LEVELCOMP_DEFAULT) == "true") {
-//       opt->OptimizeLevelStyleCompaction();
-//     }
-//   }
-// }
+  size_t max_block_size = std::stoul(props.GetProperty(PROP_MAX_BLOCK_SIZE, PROP_MAX_BLOCK_SIZE_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = max_block_size;
 
-// void BachopdDB::SerializeRow(const std::vector<Field> &values, std::string &data) {
-//   for (const Field &field : values) {
-//     uint32_t len = field.name.size();
-//     data.append(reinterpret_cast<char *>(&len), sizeof(uint32_t));
-//     data.append(field.name.data(), field.name.size());
-//     len = field.value.size();
-//     data.append(reinterpret_cast<char *>(&len), sizeof(uint32_t));
-//     data.append(field.value.data(), field.value.size());
-//   }
-// }
+  size_t memory_merge_in_tuple = std::stoul(props.GetProperty(PROP_MEMORY_MERGE_IN_TUPLE, PROP_MEMORY_MERGE_IN_TUPLE_DEFAULT));
+  opt->MEM_TABLE_MAX_SIZE = memory_merge_in_tuple;
 
-// void BachopdDB::DeserializeRowFilter(std::vector<Field> &values, const char *p, const char *lim,
-//                                      const std::vector<std::string> &fields) {
-//   std::vector<std::string>::const_iterator filter_iter = fields.begin();
-//   while (p != lim && filter_iter != fields.end()) {
-//     assert(p < lim);
-//     uint32_t len = *reinterpret_cast<const uint32_t *>(p);
-//     p += sizeof(uint32_t);
-//     std::string field(p, static_cast<const size_t>(len));
-//     p += len;
-//     len = *reinterpret_cast<const uint32_t *>(p);
-//     p += sizeof(uint32_t);
-//     std::string value(p, static_cast<const size_t>(len));
-//     p += len;
-//     if (*filter_iter == field) {
-//       values.push_back({field, value});
-//       filter_iter++;
-//     }
-//   }
-//   assert(values.size() == fields.size());
-// }
+}
 
-// void BachopdDB::DeserializeRowFilter(std::vector<Field> &values, const std::string &data,
-//                                      const std::vector<std::string> &fields) {
-//   const char *p = data.data();
-//   const char *lim = p + data.size();
-//   DeserializeRowFilter(values, p, lim, fields);
-// }
 
-// void BachopdDB::DeserializeRow(std::vector<Field> &values, const char *p, const char *lim) {
-//   while (p != lim) {
-//     assert(p < lim);
-//     uint32_t len = *reinterpret_cast<const uint32_t *>(p);
-//     p += sizeof(uint32_t);
-//     std::string field(p, static_cast<const size_t>(len));
-//     p += len;
-//     len = *reinterpret_cast<const uint32_t *>(p);
-//     p += sizeof(uint32_t);
-//     std::string value(p, static_cast<const size_t>(len));
-//     p += len;
-//     values.push_back({field, value});
-//   }
-// }
+DB::Status BachopdDB::ReadSingle(const std::string &table, const std::string &key,
+                                 const std::vector<std::string> *fields,
+                                 std::vector<Field> &result) {
+  auto z = db_->BeginRelTransaction();
+  auto data = z.GetTuple(key);
+  if(data.row.empty()){
+    return kNotFound;
+  }
+  if (fields != nullptr) {
+    // 筛选指定字段的的数据
+    for(auto it=data.row.begin(); it != data.row.end(); ++it){
+      auto is_find = std::find(fields->begin(),fields->end(),*it);
+      if(is_find != fields->end()){
+        Field value;
+        value.name = key;
+        value.value = *it;
+        result.push_back(value);          
+      }
+    }
+  } else {
+    // 直接输出key对应的所有数据
+    for(auto it =data.row.begin(); it != data.row.end() ; ++it){
+      Field value;
+      value.name = key;
+      value.value = *it;
+      result.push_back(value);
+    }
+    assert(result.size() == static_cast<size_t>(fieldcount_));
+  }
+  return kOK;
+}
 
-// void BachopdDB::DeserializeRow(std::vector<Field> &values, const std::string &data) {
-//   const char *p = data.data();
-//   const char *lim = p + data.size();
-//   DeserializeRow(values, p, lim);
-// }
+DB::Status BachopdDB::ScanSingle(const std::string &table, const std::string &key, int len,
+                                 const std::vector<std::string> *fields,
+                                 std::vector<std::vector<Field>> &result) {
+  
 
-// DB::Status BachopdDB::ReadSingle(const std::string &table, const std::string &key,
-//                                  const std::vector<std::string> *fields,
-//                                  std::vector<Field> &result) {
-//   std::string data;
-//   BACH::Status s = db_->Get(BACH::ReadOptions(), key, &data);
-//   if (s.IsNotFound()) {
-//     return kNotFound;
-//   } else if (!s.ok()) {
-//     throw utils::Exception(std::string("RocksDB Get: ") + s.ToString());
-//   }
-//   if (fields != nullptr) {
-//     DeserializeRowFilter(result, data, *fields);
-//   } else {
-//     DeserializeRow(result, data);
-//     assert(result.size() == static_cast<size_t>(fieldcount_));
-//   }
-//   return kOK;
-// }
+  return kOK;
+}
 
-// DB::Status BachopdDB::ScanSingle(const std::string &table, const std::string &key, int len,
-//                                  const std::vector<std::string> *fields,
-//                                  std::vector<std::vector<Field>> &result) {
-//   BACH::Iterator *db_iter = db_->NewIterator(BACH::ReadOptions());
-//   db_iter->Seek(key);
-//   for (int i = 0; db_iter->Valid() && i < len; i++) {
-//     std::string data = db_iter->value().ToString();
-//     result.push_back(std::vector<Field>());
-//     std::vector<Field> &values = result.back();
-//     if (fields != nullptr) {
-//       DeserializeRowFilter(values, data, *fields);
-//     } else {
-//       DeserializeRow(values, data);
-//       assert(values.size() == static_cast<size_t>(fieldcount_));
-//     }
-//     db_iter->Next();
-//   }
-//   delete db_iter;
-//   return kOK;
-// }
+DB::Status BachopdDB::UpdateSingle(const std::string &table, const std::string &key,
+                                   std::vector<Field> &values) {
+  auto z = db_->BeginRelTransaction();
+  auto data = z.GetTuple(key);
+  std::vector<Field> current_values;
+  if(data.row.empty()){
+    return kNotFound;
+  }
+  int len = data.row.size();
+  for(auto it=data.row.begin(); it!=data.row.end(); ++it){
+    Field value;
+    value.name = key;
+    value.value = *it;
+    current_values.push_back(value);
+  }
+  assert(current_values.size() == static_cast<size_t>(fieldcount_));
+  for (Field &new_field : values) {
+    bool found MAYBE_UNUSED = false;
+    for (Field &cur_field : current_values) {
+      if (cur_field.name == new_field.name) {
+        found = true;
+        cur_field.value = new_field.value;
+        break;
+      }
+    }
+    assert(found);
+  }
 
-// DB::Status BachopdDB::UpdateSingle(const std::string &table, const std::string &key,
-//                                    std::vector<Field> &values) {
-//   std::string data;
-//   BACH::Status s = db_->Get(BACH::ReadOptions(), key, &data);
-//   if (s.IsNotFound()) {
-//     return kNotFound;
-//   } else if (!s.ok()) {
-//     throw utils::Exception(std::string("RocksDB Get: ") + s.ToString());
-//   }
-//   std::vector<Field> current_values;
-//   DeserializeRow(current_values, data);
-//   assert(current_values.size() == static_cast<size_t>(fieldcount_));
-//   for (Field &new_field : values) {
-//     bool found MAYBE_UNUSED = false;
-//     for (Field &cur_field : current_values) {
-//       if (cur_field.name == new_field.name) {
-//         found = true;
-//         cur_field.value = new_field.value;
-//         break;
-//       }
-//     }
-//     assert(found);
-//   }
-//   BACH::WriteOptions wopt;
+  for (Field &cur_field : current_values) {
+    BACH::Tuple t;
+    t.row.push_back(cur_field.value);
+    auto y = db_->BeginRelTransaction(); 
+    y.PutTuple(t, cur_field.name, 1.0);
+  }
+  return kOK;
+}
 
-//   data.clear();
-//   SerializeRow(current_values, data);
-//   s = db_->Put(wopt, key, data);
-//   if (!s.ok()) {
-//     throw utils::Exception(std::string("RocksDB Put: ") + s.ToString());
-//   }
-//   return kOK;
-// }
+DB::Status BachopdDB::MergeSingle(const std::string &table, const std::string &key,
+                                  std::vector<Field> &values) {
+  std::string data;
+  return kOK;
+}
 
-// DB::Status BachopdDB::MergeSingle(const std::string &table, const std::string &key,
-//                                   std::vector<Field> &values) {
-//   std::string data;
-//   SerializeRow(values, data);
-//   BACH::WriteOptions wopt;
-//   BACH::Status s = db_->Merge(wopt, key, data);
-//   if (!s.ok()) {
-//     throw utils::Exception(std::string("RocksDB Merge: ") + s.ToString());
-//   }
-//   return kOK;
-// }
+DB::Status BachopdDB::InsertSingle(const std::string &table, const std::string &key,
+                                   std::vector<Field> &values) {
+  BACH::Tuple data;
+  auto z = db_->BeginRelTransaction();
+  z.PutTuple(data, key, 1.0);
+  return kOK;
+}
 
-// DB::Status BachopdDB::InsertSingle(const std::string &table, const std::string &key,
-//                                    std::vector<Field> &values) {
-//   std::string data;
-//   SerializeRow(values, data);
-//   BACH::WriteOptions wopt;
-//   BACH::Status s = db_->Put(wopt, key, data);
-//   if (!s.ok()) {
-//     throw utils::Exception(std::string("RocksDB Put: ") + s.ToString());
-//   }
-//   return kOK;
-// }
+DB::Status BachopdDB::DeleteSingle(const std::string &table, const std::string &key) {
+  BACH::Tuple data;
+  auto z = db_->BeginRelTransaction();
+  z.DelTuple(data, key);
+  return kOK;
+}
 
-// DB::Status BachopdDB::DeleteSingle(const std::string &table, const std::string &key) {
-//   BACH::WriteOptions wopt;
-//   BACH::Status s = db_->Delete(wopt, key);
-//   if (!s.ok()) {
-//     throw utils::Exception(std::string("RocksDB Delete: ") + s.ToString());
-//   }
-//   return kOK;
-// }
+DB *NewBachopdDB() {
+  return new BachopdDB;
+}
 
-// DB *NewBachopdDB() {
-//   return new BachopdDB;
-// }
-
-// const bool registered = DBFactory::RegisterDB("BACH", NewBachopdDB);
+const bool registered = DBFactory::RegisterDB("BACH", NewBachopdDB);
 
 } // ycsbc

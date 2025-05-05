@@ -61,8 +61,9 @@ see [BUILD_ON_WINDOWS](BUILD_ON_WINDOWS.md)
 
 Load data with leveldb:
 ```
-./ycsb -load -db leveldb -P workloads/workloada -P leveldb/leveldb.properties -s
+./ycsb -load -db rocksdb -P ../workloads/workloada -P ../rocksdb/rocksdb.properties -s
 ```
+./ycsb -load -db bachopddb -P ../workloads/workloada -P ../bachopddb/bachopddb.properties -s
 
 Run workload A with leveldb:
 ```
