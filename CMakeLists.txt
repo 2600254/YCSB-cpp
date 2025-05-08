@@ -71,6 +71,7 @@ if(BIND_BACHOPD)
     target_sources(ycsb PRIVATE ${YCSB_BACHOPD_SRC})
     find_library(BACHOPD_LIB bach-opd PATHS "${BACHOPD_DIR}/build" NO_DEFAULT_PATH REQUIRED)
     find_path(BACHOPD_INCLUDE_DIR "BACH/BACH.h" PATHS "${BACHOPD_DIR}/include" NO_DEFAULT_PATH REQUIRED)
+    target_link_libraries(ycsb PRIVATE ${BACHOPD_LIB})
     message(STATUS "Found bach_opd library")
     set(BACHOPD_INCLUDE_PATHS "${BACHOPD_INCLUDE_DIR}"
                               "${BACHOPD_INCLUDE_DIR}/dynamic_bitset/include")
