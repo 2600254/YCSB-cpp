@@ -274,6 +274,6 @@ DB *NewBachopdDB() {
   return new BachopdDB;
 }
 
-const bool registered = DBFactory::RegisterDB("BACH", NewBachopdDB);
+const bool registered = DBFactory::RegisterDB("bachopd", NewBachopdDB);
 
 } // ycsbc

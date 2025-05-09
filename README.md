@@ -63,7 +63,7 @@ Load data with leveldb:
 ```
 ./ycsb -load -db rocksdb -P ../workloads/workloada -P ../rocksdb/rocksdb.properties -s
 ```
-./ycsb -load -db bachopddb -P ../workloads/workloada -P ../bachopddb/bachopddb.properties -s
+./ycsb -load -db bachopd -P ../workloads/workloada -P ../bachopddb/bachopddb.properties -s
 
 Run workload A with leveldb:
 ```
