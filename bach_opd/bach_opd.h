@@ -51,18 +51,14 @@ class BachopdDB : public DB{
   }
 
  private:
-  enum RocksFormat {
-    kSingleRow,
-  };
-  RocksFormat format_;
 
   void GetOptions(const utils::Properties &props, std::shared_ptr<BACH::Options> opt);
-  static void SerializeRow(const std::vector<Field> &values, std::string &data);
-  static void DeserializeRowFilter(std::vector<Field> &values, const char *p, const char *lim,
-                                   const std::vector<std::string> &fields);
+  static void SerializeRow(const std::vector<Field> &values, BACH::Tuple &data);
+
+
   static void DeserializeRowFilter(std::vector<Field> &values, const BACH::Tuple &data,
                                    const std::vector<std::string> &fields);
-  static void DeserializeRow(std::vector<Field> &values, const char *p, const char *lim);
+
   static void DeserializeRow(std::vector<Field> &values, const BACH::Tuple &data);
 
   Status ReadSingle(const std::string &table, const std::string &key,
@@ -91,7 +87,6 @@ class BachopdDB : public DB{
 
   int fieldcount_;
 
-  static std::vector<BACH::DB *> cf_handles_;
   static std::unique_ptr<BACH::DB> db_;
   static int ref_cnt_;
   static std::mutex mu_;

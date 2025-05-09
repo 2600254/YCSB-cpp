@@ -78,7 +78,6 @@ namespace {
 
 namespace ycsbc {
 
-std::vector<BACH::DB *> BachopdDB::cf_handles_;
 std::unique_ptr<BACH::DB> BachopdDB::db_;
 int BachopdDB::ref_cnt_ = 0;
 std::mutex BachopdDB::mu_;
@@ -101,6 +100,11 @@ void BachopdDB::Init() {
   GetOptions(props, opt);
 
   db_ = std::make_unique<BACH::DB>(opt, column_num);
+  method_read_ = &BachopdDB::ReadSingle;
+  method_scan_ = &BachopdDB::ScanSingle;
+  method_update_ = &BachopdDB::UpdateSingle;
+  method_insert_ = &BachopdDB::InsertSingle;
+  method_delete_ = &BachopdDB::DeleteSingle;
 }
 
 void BachopdDB::Cleanup() { 
@@ -172,6 +176,37 @@ void BachopdDB::GetOptions(const utils::Properties &props, std::shared_ptr<BACH:
 }
 
 
+void BachopdDB::SerializeRow(const std::vector<Field> &values, BACH::Tuple &data){
+  for (const Field &field : values) {
+    data.row.push_back(field.name);
+    data.row.push_back(field.value);
+  }
+}
+
+void BachopdDB::DeserializeRowFilter(std::vector<Field> &result, const BACH::Tuple &data,
+                                     const std::vector<std::string> &fields) {
+  std::vector<std::string>::const_iterator filter_iter = fields.begin();
+  for(auto it=fields.begin(); it != fields.end(); ++it){
+    for(auto it_data = data.row.begin(); it_data != data.row.end(); it_data+=2){
+      if(*it_data == *it){
+        Field value;
+        value.name = *it_data;
+        value.value = *(it_data+1);
+        result.push_back(value);
+      }
+    }
+  }
+}
+
+void BachopdDB::DeserializeRow(std::vector<Field> &result, const BACH::Tuple &data) {
+    for(auto it =data.row.begin(); it != data.row.end() ; it+=2){
+      Field value;
+      value.name = *it;
+      value.value = *(it+1);
+      result.push_back(value);
+    }
+}
+
 DB::Status BachopdDB::ReadSingle(const std::string &table, const std::string &key,
                                  const std::vector<std::string> *fields,
                                  std::vector<Field> &result) {
@@ -181,24 +216,9 @@ DB::Status BachopdDB::ReadSingle(const std::string &table, const std::string &ke
     return kNotFound;
   }
   if (fields != nullptr) {
-    // 筛选指定字段的的数据
-    for(auto it=data.row.begin(); it != data.row.end(); ++it){
-      auto is_find = std::find(fields->begin(),fields->end(),*it);
-      if(is_find != fields->end()){
-        Field value;
-        value.name = key;
-        value.value = *it;
-        result.push_back(value);          
-      }
-    }
+    DeserializeRowFilter(result, data, *fields);
   } else {
-    // 直接输出key对应的所有数据
-    for(auto it =data.row.begin(); it != data.row.end() ; ++it){
-      Field value;
-      value.name = key;
-      value.value = *it;
-      result.push_back(value);
-    }
+    DeserializeRow(result, data);
     assert(result.size() == static_cast<size_t>(fieldcount_));
   }
   return kOK;
@@ -221,12 +241,7 @@ DB::Status BachopdDB::UpdateSingle(const std::string &table, const std::string &
     return kNotFound;
   }
   int len = data.row.size();
-  for(auto it=data.row.begin(); it!=data.row.end(); ++it){
-    Field value;
-    value.name = key;
-    value.value = *it;
-    current_values.push_back(value);
-  }
+  DeserializeRow(current_values, data);
   assert(current_values.size() == static_cast<size_t>(fieldcount_));
   for (Field &new_field : values) {
     bool found MAYBE_UNUSED = false;
@@ -240,12 +255,11 @@ DB::Status BachopdDB::UpdateSingle(const std::string &table, const std::string &
     assert(found);
   }
 
-  for (Field &cur_field : current_values) {
-    BACH::Tuple t;
-    t.row.push_back(cur_field.value);
-    auto y = db_->BeginRelTransaction(); 
-    y.PutTuple(t, cur_field.name, 1.0);
-  }
+  BACH::Tuple t;
+  SerializeRow(current_values, t);
+  auto y = db_->BeginRelTransaction(); 
+  y.PutTuple(t, key, 1.0);
+
   return kOK;
 }
 
@@ -258,6 +272,7 @@ DB::Status BachopdDB::MergeSingle(const std::string &table, const std::string &k
 DB::Status BachopdDB::InsertSingle(const std::string &table, const std::string &key,
                                    std::vector<Field> &values) {
   BACH::Tuple data;
+  SerializeRow(values, data);
   auto z = db_->BeginRelTransaction();
   z.PutTuple(data, key, 1.0);
   return kOK;
