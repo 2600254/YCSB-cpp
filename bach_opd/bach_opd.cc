@@ -177,34 +177,53 @@ void BachopdDB::GetOptions(const utils::Properties &props, std::shared_ptr<BACH:
 
 
 void BachopdDB::SerializeRow(const std::vector<Field> &values, BACH::Tuple &data){
+  std::string str;
   for (const Field &field : values) {
-    data.row.push_back(field.name);
-    data.row.push_back(field.value);
+    uint32_t len = field.name.size();
+    str.append(reinterpret_cast<char *>(&len), sizeof(uint32_t));
+    str.append(field.name.data(), field.name.size());
+    len = field.value.size();
+    str.append(reinterpret_cast<char *>(&len), sizeof(uint32_t));
+    str.append(field.value.data(), field.value.size());
+    data.row.push_back(str);
+    str.clear();
   }
 }
 
 void BachopdDB::DeserializeRowFilter(std::vector<Field> &result, const BACH::Tuple &data,
                                      const std::vector<std::string> &fields) {
-  std::vector<std::string>::const_iterator filter_iter = fields.begin();
   for(auto it=fields.begin(); it != fields.end(); ++it){
-    for(auto it_data = data.row.begin(); it_data != data.row.end(); it_data+=2){
-      if(*it_data == *it){
-        Field value;
-        value.name = *it_data;
-        value.value = *(it_data+1);
-        result.push_back(value);
+    for(auto it_data = data.row.begin(); it_data != data.row.end(); ++it_data){
+      const char *p = (*it).data();
+      uint32_t len = *reinterpret_cast<const uint32_t *>(p);
+      p += sizeof(uint32_t);
+      std::string field(p, static_cast<const size_t>(len));
+      p += len;
+      len = *reinterpret_cast<const uint32_t *>(p);
+      p += sizeof(uint32_t);
+      std::string value(p, static_cast<const size_t>(len));
+      p += len;
+      if (*it == field) {
+        result.push_back({field, value});
+        it++;
       }
     }
   }
 }
 
 void BachopdDB::DeserializeRow(std::vector<Field> &result, const BACH::Tuple &data) {
-    for(auto it =data.row.begin(); it != data.row.end() ; it+=2){
-      Field value;
-      value.name = *it;
-      value.value = *(it+1);
-      result.push_back(value);
-    }
+  for(auto it =data.row.begin(); it != data.row.end() ; ++it){
+    const char *p = (*it).data();
+    uint32_t len = *reinterpret_cast<const uint32_t *>(p);
+    p += sizeof(uint32_t);
+    std::string field(p, static_cast<const size_t>(len));
+    p += len;
+    len = *reinterpret_cast<const uint32_t *>(p);
+    p += sizeof(uint32_t);
+    std::string value(p, static_cast<const size_t>(len));
+    p += len;
+    result.push_back({field, value});
+  }
 }
 
 DB::Status BachopdDB::ReadSingle(const std::string &table, const std::string &key,
