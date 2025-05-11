@@ -114,10 +114,12 @@ int main(const int argc, const char *argv[]) {
   }
 
   ycsbc::CoreWorkload wl;
+
   wl.Init(props);
 
   // print status periodically
   const bool show_status = (props.GetProperty("status", "false") == "true");
+
   const int status_interval = std::stoi(props.GetProperty("status.interval", "10"));
 
   // load phase
@@ -262,8 +264,12 @@ void ParseCommandLine(int argc, const char *argv[], ycsbc::utils::Properties &pr
         std::cerr << "Missing argument value for -P" << std::endl;
         exit(0);
       }
-      std::string filename(argv[argindex]);
-      std::ifstream input(argv[argindex]);
+      std::string filename = argv[argindex];
+      std::ifstream input(filename);
+      if(!input){
+        std::cerr << "Error opening file: " << filename << std::endl;
+        exit(1);
+      }
       try {
         props.Load(input);
       } catch (const std::string &message) {

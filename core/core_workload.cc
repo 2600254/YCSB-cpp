@@ -14,6 +14,7 @@
 #include "const_generator.h"
 #include "core_workload.h"
 #include "random_byte_generator.h"
+#include "random_const_byte_genrator.h"
 #include "utils/utils.h"
 
 #include <algorithm>
@@ -43,6 +44,9 @@ const string CoreWorkload::TABLENAME_DEFAULT = "usertable";
 
 const string CoreWorkload::FIELD_COUNT_PROPERTY = "fieldcount";
 const string CoreWorkload::FIELD_COUNT_DEFAULT = "10";
+
+const string CoreWorkload::NUMDISTINT_PROPERTY = "numdistint";
+const string CoreWorkload::NUMDISTINT_DEFAULT = "0";
 
 const string CoreWorkload::FIELD_LENGTH_DISTRIBUTION_PROPERTY = "field_len_dist";
 const string CoreWorkload::FIELD_LENGTH_DISTRIBUTION_DEFAULT = "constant";
@@ -106,6 +110,11 @@ void CoreWorkload::Init(const utils::Properties &p) {
   table_name_ = p.GetProperty(TABLENAME_PROPERTY,TABLENAME_DEFAULT);
 
   field_count_ = std::stoi(p.GetProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_DEFAULT));
+  numdistint_ = std::stoi(p.GetProperty(NUMDISTINT_PROPERTY, NUMDISTINT_DEFAULT));
+  if(numdistint_){
+    randomconstbytegenerator_ = std::make_unique<RandomConstByteGenerator>();
+    randomconstbytegenerator_->init(numdistint_);
+  }
   field_prefix_ = p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT);
   field_len_generator_ = GetFieldLenGenerator(p);
 
@@ -229,8 +238,13 @@ void CoreWorkload::BuildValues(std::vector<ycsbc::DB::Field> &values) {
     field.name.append(field_prefix_).append(std::to_string(i));
     uint64_t len = field_len_generator_->Next();
     field.value.reserve(len);
-    RandomByteGenerator byte_generator;
-    std::generate_n(std::back_inserter(field.value), len, [&]() { return byte_generator.Next(); } );
+    if(numdistint_){
+      std::generate_n(std::back_inserter(field.value), len, [&]() { return randomconstbytegenerator_->Next(); } );   
+      randomconstbytegenerator_->reset();
+    }else{
+      RandomByteGenerator byte_generator;
+      std::generate_n(std::back_inserter(field.value), len, [&]() { return byte_generator.Next(); } );         
+    }
   }
 }
 

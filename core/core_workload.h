@@ -12,10 +12,12 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 #include "db.h"
 #include "generator.h"
 #include "discrete_generator.h"
 #include "counter_generator.h"
+#include "random_const_byte_genrator.h"
 #include "acknowledged_counter_generator.h"
 #include "utils/properties.h"
 #include "utils/utils.h"
@@ -53,6 +55,12 @@ class CoreWorkload {
   ///
   static const std::string FIELD_COUNT_PROPERTY;
   static const std::string FIELD_COUNT_DEFAULT;
+
+  ///
+  /// The name of the property for the repeat times of the same fields in a record.
+  ///
+  static const std::string NUMDISTINT_PROPERTY;
+  static const std::string NUMDISTINT_DEFAULT;
 
   ///
   /// The name of the property for the field length distribution.
@@ -195,6 +203,8 @@ class CoreWorkload {
     delete insert_key_sequence_;
     delete transaction_insert_key_sequence_;
   }
+  int numdistint_;
+  std::unique_ptr<ycsbc::RandomConstByteGenerator> randomconstbytegenerator_;
 
  protected:
   static Generator<uint64_t> *GetFieldLenGenerator(const utils::Properties &p);
