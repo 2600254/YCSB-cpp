@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <random>
 #include <string>
+#include <iostream>
 
 using ycsbc::CoreWorkload;
 using std::string;
@@ -240,6 +241,7 @@ void CoreWorkload::BuildValues(std::vector<ycsbc::DB::Field> &values) {
     field.value.reserve(len);
     if(numdistint_){
       std::generate_n(std::back_inserter(field.value), len, [&]() { return randomconstbytegenerator_->Next(); } );   
+      // std::cerr << randomconstbytegenerator_->count_ << std::endl;
       randomconstbytegenerator_->reset();
     }else{
       RandomByteGenerator byte_generator;

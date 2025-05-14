@@ -5,6 +5,7 @@
 #include "utils/utils.h"
 #include <memory>
 #include <random>
+#include <cstdio>
 
 namespace ycsbc {
 
@@ -16,10 +17,11 @@ class RandomConstByteGenerator : public Generator<char> {
   char Last();
   void reset();
   virtual void init(int numdistint);
+  int count_;
 
  private:
   int numdistint_;
-  int count_;
+  
   std::unique_ptr<char[]> buf_; 
   int off_;
 };

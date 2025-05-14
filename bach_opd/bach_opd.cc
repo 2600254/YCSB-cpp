@@ -192,28 +192,32 @@ void BachopdDB::SerializeRow(const std::vector<Field> &values, BACH::Tuple &data
 
 void BachopdDB::DeserializeRowFilter(std::vector<Field> &result, const BACH::Tuple &data,
                                      const std::vector<std::string> &fields) {
-  for(auto it=fields.begin(); it != fields.end(); ++it){
-    for(auto it_data = data.row.begin(); it_data != data.row.end(); ++it_data){
-      const char *p = (*it).data();
-      uint32_t len = *reinterpret_cast<const uint32_t *>(p);
-      p += sizeof(uint32_t);
-      std::string field(p, static_cast<const size_t>(len));
-      p += len;
-      len = *reinterpret_cast<const uint32_t *>(p);
-      p += sizeof(uint32_t);
-      std::string value(p, static_cast<const size_t>(len));
-      p += len;
-      if (*it == field) {
-        result.push_back({field, value});
-        it++;
-      }
+  std::vector<std::string>::const_iterator filter_iter = fields.begin();
+  const char *p = data.row[1].data();
+  const char *lim = p + data.row[1].size();
+  while (p != lim && filter_iter != fields.end()) {
+    assert(p < lim);
+    uint32_t len = *reinterpret_cast<const uint32_t *>(p);
+    p += sizeof(uint32_t);
+    std::string field(p, static_cast<const size_t>(len));
+    p += len;
+    len = *reinterpret_cast<const uint32_t *>(p);
+    p += sizeof(uint32_t);
+    std::string value(p, static_cast<const size_t>(len));
+    p += len;
+    if (*filter_iter == field) {
+      result.push_back({field, value});
+      filter_iter++;
     }
   }
+  assert(result.size() == fields.size());
 }
 
 void BachopdDB::DeserializeRow(std::vector<Field> &result, const BACH::Tuple &data) {
-  for(auto it =data.row.begin(); it != data.row.end() ; ++it){
-    const char *p = (*it).data();
+  const char *p = data.row[1].data();
+  const char *lim = p + data.row[1].size();
+  while (p != lim) {
+    assert(p < lim);
     uint32_t len = *reinterpret_cast<const uint32_t *>(p);
     p += sizeof(uint32_t);
     std::string field(p, static_cast<const size_t>(len));
@@ -224,6 +228,18 @@ void BachopdDB::DeserializeRow(std::vector<Field> &result, const BACH::Tuple &da
     p += len;
     result.push_back({field, value});
   }
+  // for(auto it =data.row.begin(); it != data.row.end() ; ++it){
+  //   const char *p = (*it).data();
+  //   uint32_t len = *reinterpret_cast<const uint32_t *>(p);
+  //   p += sizeof(uint32_t);
+  //   std::string field(p, static_cast<const size_t>(len));
+  //   p += len;
+  //   len = *reinterpret_cast<const uint32_t *>(p);
+  //   p += sizeof(uint32_t);
+  //   std::string value(p, static_cast<const size_t>(len));
+  //   p += len;
+  //   result.push_back({field, value});
+  // }
 }
 
 DB::Status BachopdDB::ReadSingle(const std::string &table, const std::string &key,
@@ -253,32 +269,11 @@ DB::Status BachopdDB::ScanSingle(const std::string &table, const std::string &ke
 
 DB::Status BachopdDB::UpdateSingle(const std::string &table, const std::string &key,
                                    std::vector<Field> &values) {
+  BACH::Tuple data;
+  data.row.push_back(key);
+  SerializeRow(values, data);
   auto z = db_->BeginRelTransaction();
-  auto data = z.GetTuple(key);
-  std::vector<Field> current_values;
-  if(data.row.empty()){
-    return kNotFound;
-  }
-  int len = data.row.size();
-  DeserializeRow(current_values, data);
-  assert(current_values.size() == static_cast<size_t>(fieldcount_));
-  for (Field &new_field : values) {
-    bool found MAYBE_UNUSED = false;
-    for (Field &cur_field : current_values) {
-      if (cur_field.name == new_field.name) {
-        found = true;
-        cur_field.value = new_field.value;
-        break;
-      }
-    }
-    assert(found);
-  }
-
-  BACH::Tuple t;
-  SerializeRow(current_values, t);
-  auto y = db_->BeginRelTransaction(); 
-  y.PutTuple(t, key, 1.0);
-
+  z.PutTuple(data, key, 1.0);
   return kOK;
 }
 
@@ -291,6 +286,7 @@ DB::Status BachopdDB::MergeSingle(const std::string &table, const std::string &k
 DB::Status BachopdDB::InsertSingle(const std::string &table, const std::string &key,
                                    std::vector<Field> &values) {
   BACH::Tuple data;
+  data.row.push_back(key);
   SerializeRow(values, data);
   auto z = db_->BeginRelTransaction();
   z.PutTuple(data, key, 1.0);
@@ -299,6 +295,7 @@ DB::Status BachopdDB::InsertSingle(const std::string &table, const std::string &
 
 DB::Status BachopdDB::DeleteSingle(const std::string &table, const std::string &key) {
   BACH::Tuple data;
+  data.row.push_back(key);
   auto z = db_->BeginRelTransaction();
   z.DelTuple(data, key);
   return kOK;
