@@ -50,6 +50,12 @@ class RocksdbDB : public DB {
     return (this->*(method_delete_))(table, key);
   }
 
+  Status Filter(const std::string &table, const std::vector<DB::Field> &value,
+                   const std::vector<std::string> *fields, Direction dir,
+                   std::vector<std::vector<Field>> &result) {
+    return (this->*(method_filter_))(table, value, fields, dir, result);
+  }
+
  private:
   enum RocksFormat {
     kSingleRow,
@@ -78,6 +84,9 @@ class RocksdbDB : public DB {
   Status InsertSingle(const std::string &table, const std::string &key,
                       std::vector<Field> &values);
   Status DeleteSingle(const std::string &table, const std::string &key);
+  Status FilterSingle(const std::string &table, const std::vector<Field> &value,
+                      const std::vector<std::string> *fields, Direction dir,
+                      std::vector<std::vector<Field>> &result);
 
   Status (RocksdbDB::*method_read_)(const std::string &, const std:: string &,
                                     const std::vector<std::string> *, std::vector<Field> &);
@@ -89,6 +98,9 @@ class RocksdbDB : public DB {
   Status (RocksdbDB::*method_insert_)(const std::string &, const std::string &,
                                       std::vector<Field> &);
   Status (RocksdbDB::*method_delete_)(const std::string &, const std::string &);
+  Status (RocksdbDB::*method_filter_)(const std::string &, const std::vector<Field> &,
+                                      const std::vector<std::string> *, Direction,
+                                      std::vector<std::vector<Field>> &);
 
   int fieldcount_;
 

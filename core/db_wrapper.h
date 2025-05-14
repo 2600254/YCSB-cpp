@@ -87,6 +87,19 @@ class DBWrapper : public DB {
     }
     return s;
   }
+  Status Filter(const std::string &table, const std::vector<DB::Field> &value,
+                const std::vector<std::string> *fields, Direction dir,
+                std::vector<std::vector<Field>> &result) {
+    timer_.Start();
+    Status s = db_->Filter(table, value, fields, dir, result);
+    uint64_t elapsed = timer_.End();
+    if (s == kOK) {
+      measurements_->Report(FILTER, elapsed);
+    } else {
+      measurements_->Report(FILTER_FAILED, elapsed);
+    }
+    return s;
+  }
  private:
   DB *db_;
   Measurements *measurements_;

@@ -89,6 +89,18 @@ DB::Status BasicDB::Delete(const std::string &table, const std::string &key) {
   return kOK;
 }
 
+DB::Status BasicDB::Filter(const std::string &table, const std::vector<Field> &value,
+                            const std::vector<std::string> *fields, Direction dir,
+                            std::vector<std::vector<Field>> &result) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  *out_ << "FILTER " << table << " [ ";
+  for (auto v : value) {
+    *out_ << v.name << (dir == Direction::kGreater ? '>' : '<') << v.value << ' ';
+  }
+  *out_ << ']' << std::endl;
+  return kOK;
+}
+
 DB *NewBasicDB() {
   return new BasicDB;
 }

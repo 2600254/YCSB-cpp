@@ -32,6 +32,10 @@ class DB {
     kNotFound,
     kNotImplemented
   };
+  enum Direction {
+    kGreater = 0,
+    kLess
+  };
   ///
   /// Initializes any state for accessing this DB.
   ///
@@ -99,6 +103,21 @@ class DB {
   /// @return Zero on success, a non-zero error code on error.
   ///
   virtual Status Delete(const std::string &table, const std::string &key) = 0;
+  ///
+  /// Filters all records whose value is greater/less than the given value.
+  /// Field/value pairs from the result are stored in a vector.
+  ///
+  /// @param table The name of the table.
+  /// @param value The value to filter by.
+  /// @param fields The list of fields to read, or NULL for all of them.
+  /// @param direction The direction of the filter (greater or less).
+  /// @param result A vector of vector, where each vector contains field/value
+  ///        pairs for one record
+  /// @return Zero on success, or a non-zero error code on error.
+  ///
+  virtual Status Filter(const std::string &table, const std::vector<DB::Field> &value,
+                   const std::vector<std::string> *fields, Direction dir,
+                   std::vector<std::vector<Field>> &result) = 0;
 
   virtual ~DB() { }
 
