@@ -32,12 +32,14 @@ const char *ycsbc::kOperationString[ycsbc::MAXOPTYPE] = {
   "SCAN",
   "READMODIFYWRITE",
   "DELETE",
+  "FILTER",
   "INSERT-FAILED",
   "READ-FAILED",
   "UPDATE-FAILED",
   "SCAN-FAILED",
   "READMODIFYWRITE-FAILED",
-  "DELETE-FAILED"
+  "DELETE-FAILED",
+  "FILTER-FAILED"
 };
 
 const string CoreWorkload::TABLENAME_PROPERTY = "table";
@@ -75,6 +77,9 @@ const string CoreWorkload::SCAN_PROPORTION_DEFAULT = "0.0";
 
 const string CoreWorkload::READMODIFYWRITE_PROPORTION_PROPERTY = "readmodifywriteproportion";
 const string CoreWorkload::READMODIFYWRITE_PROPORTION_DEFAULT = "0.0";
+
+const string CoreWorkload::FILTER_PROPORTION_PROPERTY = "filterproportion";
+const string CoreWorkload::FILTER_PROPORTION_DEFAULT = "0.0";
 
 const string CoreWorkload::REQUEST_DISTRIBUTION_PROPERTY = "requestdistribution";
 const string CoreWorkload::REQUEST_DISTRIBUTION_DEFAULT = "uniform";
@@ -129,6 +134,8 @@ void CoreWorkload::Init(const utils::Properties &p) {
                                                    SCAN_PROPORTION_DEFAULT));
   double readmodifywrite_proportion = std::stod(p.GetProperty(
       READMODIFYWRITE_PROPORTION_PROPERTY, READMODIFYWRITE_PROPORTION_DEFAULT));
+  double filter_proportion = std::stod(p.GetProperty(FILTER_PROPORTION_PROPERTY,
+                                                     FILTER_PROPORTION_DEFAULT));
 
   record_count_ = std::stoi(p.GetProperty(RECORD_COUNT_PROPERTY));
   std::string request_dist = p.GetProperty(REQUEST_DISTRIBUTION_PROPERTY,
@@ -168,6 +175,9 @@ void CoreWorkload::Init(const utils::Properties &p) {
   if (readmodifywrite_proportion > 0) {
     op_chooser_.AddValue(READMODIFYWRITE, readmodifywrite_proportion);
   }
+  if (filter_proportion > 0) {
+    op_chooser_.AddValue(FILTER, filter_proportion);
+  }
 
   insert_key_sequence_ = new CounterGenerator(insert_start);
   transaction_insert_key_sequence_ = new AcknowledgedCounterGenerator(record_count_);
@@ -204,6 +214,8 @@ void CoreWorkload::Init(const utils::Properties &p) {
   } else {
     throw utils::Exception("Distribution not allowed for scan length: " + scan_len_dist);
   }
+
+  direction_chooser_ = new UniformGenerator(0, 1);
 }
 
 ycsbc::Generator<uint64_t> *CoreWorkload::GetFieldLenGenerator(
@@ -272,6 +284,10 @@ std::string CoreWorkload::NextFieldName() {
   return std::string(field_prefix_).append(std::to_string(field_chooser_->Next()));
 }
 
+DB::Direction CoreWorkload::NextDirection() {
+  return static_cast<DB::Direction>(direction_chooser_->Next());
+}
+
 bool CoreWorkload::DoInsert(DB &db) {
   const std::string key = BuildKeyName(insert_key_sequence_->Next());
   std::vector<DB::Field> fields;
@@ -296,6 +312,9 @@ bool CoreWorkload::DoTransaction(DB &db) {
       break;
     case READMODIFYWRITE:
       status = TransactionReadModifyWrite(db);
+      break;
+    case FILTER:
+      status = TransactionFilter(db);
       break;
     default:
       throw utils::Exception("Operation request is not recognized!");
@@ -372,6 +391,20 @@ DB::Status CoreWorkload::TransactionInsert(DB &db) {
   DB::Status s = db.Insert(table_name_, key, values);
   transaction_insert_key_sequence_->Acknowledge(key_num);
   return s;
+}
+
+DB::Status CoreWorkload::TransactionFilter(DB &db) {
+  std::vector<DB::Field> value;
+  BuildSingleValue(value);
+  const DB::Direction dir = NextDirection();
+  std::vector<std::vector<DB::Field>> result;
+  if (!read_all_fields()) {
+    std::vector<std::string> fields;
+    fields.push_back(NextFieldName());
+    return db.Filter(table_name_, value, &fields, dir, result);
+  } else {
+    return db.Filter(table_name_, value, NULL, dir, result);
+  }
 }
 
 } // ycsbc

@@ -11,7 +11,7 @@ namespace ycsbc {
 
 class RandomConstByteGenerator : public Generator<char> {
  public:
-  RandomConstByteGenerator() : off_(0),count_(0) {}
+  RandomConstByteGenerator() : count_(0), off_(0) {}
 
   char Next();
   char Last();

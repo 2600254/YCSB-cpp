@@ -36,6 +36,10 @@ class BasicDB : public DB {
 
   Status Delete(const std::string &table, const std::string &key);
 
+  Status Filter(const std::string &table, const std::vector<DB::Field> &value,
+                const std::vector<std::string> *fields, Direction dir,
+                std::vector<std::vector<Field>> &result);
+
  private:
   static std::mutex mutex_;
 

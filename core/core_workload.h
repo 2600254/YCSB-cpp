@@ -31,12 +31,14 @@ enum Operation {
   SCAN,
   READMODIFYWRITE,
   DELETE,
+  FILTER,
   INSERT_FAILED,
   READ_FAILED,
   UPDATE_FAILED,
   SCAN_FAILED,
   READMODIFYWRITE_FAILED,
   DELETE_FAILED,
+  FILTER_FAILED,
   MAXOPTYPE
 };
 
@@ -119,6 +121,13 @@ class CoreWorkload {
   ///
   static const std::string READMODIFYWRITE_PROPORTION_PROPERTY;
   static const std::string READMODIFYWRITE_PROPORTION_DEFAULT;
+
+  ///
+  /// The name of the property for the proportion of
+  /// filter transactions.
+  ///
+  static const std::string FILTER_PROPORTION_PROPERTY;
+  static const std::string FILTER_PROPORTION_DEFAULT;
 
   ///
   /// The name of the property for the the distribution of request keys.
@@ -214,12 +223,14 @@ class CoreWorkload {
 
   uint64_t NextTransactionKeyNum();
   std::string NextFieldName();
+  DB::Direction NextDirection();
 
   DB::Status TransactionRead(DB &db);
   DB::Status TransactionReadModifyWrite(DB &db);
   DB::Status TransactionScan(DB &db);
   DB::Status TransactionUpdate(DB &db);
   DB::Status TransactionInsert(DB &db);
+  DB::Status TransactionFilter(DB &db);
 
   std::string table_name_;
   int field_count_;
@@ -233,6 +244,7 @@ class CoreWorkload {
   Generator<uint64_t> *scan_len_chooser_;
   CounterGenerator *insert_key_sequence_; // load insert key gen
   AcknowledgedCounterGenerator *transaction_insert_key_sequence_; // transaction insert key gen
+  Generator<uint64_t> *direction_chooser_;
   bool ordered_inserts_;
   size_t record_count_;
   int zero_padding_;
