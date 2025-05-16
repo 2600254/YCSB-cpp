@@ -14,7 +14,6 @@
 #include "const_generator.h"
 #include "core_workload.h"
 #include "random_byte_generator.h"
-#include "random_const_byte_genrator.h"
 #include "utils/utils.h"
 
 #include <algorithm>
@@ -48,8 +47,8 @@ const string CoreWorkload::TABLENAME_DEFAULT = "usertable";
 const string CoreWorkload::FIELD_COUNT_PROPERTY = "fieldcount";
 const string CoreWorkload::FIELD_COUNT_DEFAULT = "10";
 
-const string CoreWorkload::NUMDISTINT_PROPERTY = "numdistint";
-const string CoreWorkload::NUMDISTINT_DEFAULT = "0";
+const string CoreWorkload::DISTINCT_VALUE_NUM_PROPERTY = "numdistinct";
+const string CoreWorkload::DISTINCT_VALUE_NUM_DEFAULT = "0";
 
 const string CoreWorkload::FIELD_LENGTH_DISTRIBUTION_PROPERTY = "field_len_dist";
 const string CoreWorkload::FIELD_LENGTH_DISTRIBUTION_DEFAULT = "constant";
@@ -80,6 +79,9 @@ const string CoreWorkload::READMODIFYWRITE_PROPORTION_DEFAULT = "0.0";
 
 const string CoreWorkload::FILTER_PROPORTION_PROPERTY = "filterproportion";
 const string CoreWorkload::FILTER_PROPORTION_DEFAULT = "0.0";
+
+const string CoreWorkload::FILTER_SELECTION_RATE_PROPERTY = "filterselectionrate";
+const string CoreWorkload::FILTER_SELECTION_RATE_DEFAULT = "0.01";
 
 const string CoreWorkload::REQUEST_DISTRIBUTION_PROPERTY = "requestdistribution";
 const string CoreWorkload::REQUEST_DISTRIBUTION_DEFAULT = "uniform";
@@ -116,10 +118,10 @@ void CoreWorkload::Init(const utils::Properties &p) {
   table_name_ = p.GetProperty(TABLENAME_PROPERTY,TABLENAME_DEFAULT);
 
   field_count_ = std::stoi(p.GetProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_DEFAULT));
-  numdistint_ = std::stoi(p.GetProperty(NUMDISTINT_PROPERTY, NUMDISTINT_DEFAULT));
-  if(numdistint_){
-    randomconstbytegenerator_ = std::make_unique<RandomConstByteGenerator>();
-    randomconstbytegenerator_->init(numdistint_);
+  numdistinct_ = std::stoi(p.GetProperty(DISTINCT_VALUE_NUM_PROPERTY, DISTINCT_VALUE_NUM_DEFAULT));
+  if(numdistinct_ > 0){
+    distinct_value_generator_ = new DistinctValueGenerator();
+    distinct_value_generator_->init(numdistinct_);
   }
   field_prefix_ = p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT);
   field_len_generator_ = GetFieldLenGenerator(p);
@@ -136,6 +138,9 @@ void CoreWorkload::Init(const utils::Properties &p) {
       READMODIFYWRITE_PROPORTION_PROPERTY, READMODIFYWRITE_PROPORTION_DEFAULT));
   double filter_proportion = std::stod(p.GetProperty(FILTER_PROPORTION_PROPERTY,
                                                      FILTER_PROPORTION_DEFAULT));
+
+  selection_rate_ = std::stod(p.GetProperty(FILTER_SELECTION_RATE_PROPERTY,
+                                              FILTER_SELECTION_RATE_DEFAULT));
 
   record_count_ = std::stoi(p.GetProperty(RECORD_COUNT_PROPERTY));
   std::string request_dist = p.GetProperty(REQUEST_DISTRIBUTION_PROPERTY,
@@ -214,8 +219,6 @@ void CoreWorkload::Init(const utils::Properties &p) {
   } else {
     throw utils::Exception("Distribution not allowed for scan length: " + scan_len_dist);
   }
-
-  direction_chooser_ = new UniformGenerator(0, 1);
 }
 
 ycsbc::Generator<uint64_t> *CoreWorkload::GetFieldLenGenerator(
@@ -251,10 +254,8 @@ void CoreWorkload::BuildValues(std::vector<ycsbc::DB::Field> &values) {
     field.name.append(field_prefix_).append(std::to_string(i));
     uint64_t len = field_len_generator_->Next();
     field.value.reserve(len);
-    if(numdistint_){
-      std::generate_n(std::back_inserter(field.value), len, [&]() { return randomconstbytegenerator_->Next(); } );   
-      // std::cerr << randomconstbytegenerator_->count_ << std::endl;
-      randomconstbytegenerator_->reset();
+    if(numdistinct_){
+      distinct_value_generator_->Next(field.value, len);
     }else{
       RandomByteGenerator byte_generator;
       std::generate_n(std::back_inserter(field.value), len, [&]() { return byte_generator.Next(); } );         
@@ -282,10 +283,6 @@ uint64_t CoreWorkload::NextTransactionKeyNum() {
 
 std::string CoreWorkload::NextFieldName() {
   return std::string(field_prefix_).append(std::to_string(field_chooser_->Next()));
-}
-
-DB::Direction CoreWorkload::NextDirection() {
-  return static_cast<DB::Direction>(direction_chooser_->Next());
 }
 
 bool CoreWorkload::DoInsert(DB &db) {
@@ -394,16 +391,28 @@ DB::Status CoreWorkload::TransactionInsert(DB &db) {
 }
 
 DB::Status CoreWorkload::TransactionFilter(DB &db) {
-  std::vector<DB::Field> value;
-  BuildSingleValue(value);
-  const DB::Direction dir = NextDirection();
+  std::vector<DB::Field> lvalue, rvalue;
+  int len = field_len_generator_->Next();
+  if (distinct_value_generator_ == nullptr) {
+    BuildSingleValue(lvalue);
+    BuildSingleValue(rvalue);
+    rvalue.back().name = lvalue.back().name;
+    if (lvalue.back().value > rvalue.back().value) {
+      std::swap(lvalue.back(), rvalue.back());
+    }
+  } else {
+    lvalue.push_back(DB::Field());
+    rvalue.push_back(DB::Field());
+    rvalue.back().name = lvalue.back().name = NextFieldName();
+    distinct_value_generator_->Get(lvalue.back().value, rvalue.back().value, len, selection_rate_);
+  }
   std::vector<std::vector<DB::Field>> result;
   if (!read_all_fields()) {
     std::vector<std::string> fields;
     fields.push_back(NextFieldName());
-    return db.Filter(table_name_, value, &fields, dir, result);
+    return db.Filter(table_name_, lvalue, rvalue, &fields, result);
   } else {
-    return db.Filter(table_name_, value, NULL, dir, result);
+    return db.Filter(table_name_, lvalue, rvalue, NULL, result);
   }
 }
 

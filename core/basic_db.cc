@@ -89,13 +89,13 @@ DB::Status BasicDB::Delete(const std::string &table, const std::string &key) {
   return kOK;
 }
 
-DB::Status BasicDB::Filter(const std::string &table, const std::vector<Field> &value,
-                            const std::vector<std::string> *fields, Direction dir,
+DB::Status BasicDB::Filter(const std::string &table, const std::vector<Field> &lvalue,
+                            const std::vector<Field> &rvalue, const std::vector<std::string> *fields,
                             std::vector<std::vector<Field>> &result) {
   std::lock_guard<std::mutex> lock(mutex_);
   *out_ << "FILTER " << table << " [ ";
-  for (auto v : value) {
-    *out_ << v.name << (dir == Direction::kGreater ? '>' : '<') << v.value << ' ';
+  for (size_t i = 0; i < lvalue.size(); ++i) {
+    *out_ << lvalue[i].name << " in [" << lvalue[i].value << ", " << rvalue[i].value << ") ";
   }
   *out_ << ']' << std::endl;
   return kOK;

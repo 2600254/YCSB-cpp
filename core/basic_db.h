@@ -36,8 +36,8 @@ class BasicDB : public DB {
 
   Status Delete(const std::string &table, const std::string &key);
 
-  Status Filter(const std::string &table, const std::vector<DB::Field> &value,
-                const std::vector<std::string> *fields, Direction dir,
+  Status Filter(const std::string &table, const std::vector<DB::Field> &lvalue,
+                const std::vector<DB::Field> &rvalue, const std::vector<std::string> *fields,
                 std::vector<std::vector<Field>> &result);
 
  private:
