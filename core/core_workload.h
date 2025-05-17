@@ -17,7 +17,7 @@
 #include "generator.h"
 #include "discrete_generator.h"
 #include "counter_generator.h"
-#include "random_const_byte_genrator.h"
+#include "distinct_value_generator.h"
 #include "acknowledged_counter_generator.h"
 #include "utils/properties.h"
 #include "utils/utils.h"
@@ -61,8 +61,8 @@ class CoreWorkload {
   ///
   /// The name of the property for the repeat times of the same fields in a record.
   ///
-  static const std::string NUMDISTINT_PROPERTY;
-  static const std::string NUMDISTINT_DEFAULT;
+  static const std::string DISTINCT_VALUE_NUM_PROPERTY;
+  static const std::string DISTINCT_VALUE_NUM_DEFAULT;
 
   ///
   /// The name of the property for the field length distribution.
@@ -128,6 +128,15 @@ class CoreWorkload {
   ///
   static const std::string FILTER_PROPORTION_PROPERTY;
   static const std::string FILTER_PROPORTION_DEFAULT;
+
+  ///
+  /// The name of the property for the selection rate of
+  /// filter transactions.
+  /// Only works when DISTINCT_VALUE_NUM_PROPERTY > 0 and both of -load
+  /// and -run are specified.
+  ///
+  static const std::string FILTER_SELECTION_RATE_PROPERTY;
+  static const std::string FILTER_SELECTION_RATE_DEFAULT;
 
   ///
   /// The name of the property for the the distribution of request keys.
@@ -199,12 +208,14 @@ class CoreWorkload {
 
   CoreWorkload() :
       field_count_(0), read_all_fields_(false), write_all_fields_(false),
-      field_len_generator_(nullptr), key_chooser_(nullptr), field_chooser_(nullptr),
+      distinct_value_generator_(nullptr), field_len_generator_(nullptr),
+      key_chooser_(nullptr), field_chooser_(nullptr),
       scan_len_chooser_(nullptr), insert_key_sequence_(nullptr),
       transaction_insert_key_sequence_(nullptr), ordered_inserts_(true), record_count_(0) {
   }
 
   virtual ~CoreWorkload() {
+    delete distinct_value_generator_;
     delete field_len_generator_;
     delete key_chooser_;
     delete field_chooser_;
@@ -212,8 +223,6 @@ class CoreWorkload {
     delete insert_key_sequence_;
     delete transaction_insert_key_sequence_;
   }
-  int numdistint_;
-  std::unique_ptr<ycsbc::RandomConstByteGenerator> randomconstbytegenerator_;
 
  protected:
   static Generator<uint64_t> *GetFieldLenGenerator(const utils::Properties &p);
@@ -223,7 +232,6 @@ class CoreWorkload {
 
   uint64_t NextTransactionKeyNum();
   std::string NextFieldName();
-  DB::Direction NextDirection();
 
   DB::Status TransactionRead(DB &db);
   DB::Status TransactionReadModifyWrite(DB &db);
@@ -237,6 +245,9 @@ class CoreWorkload {
   std::string field_prefix_;
   bool read_all_fields_;
   bool write_all_fields_;
+  int numdistinct_;
+  double selection_rate_;
+  DistinctValueGenerator *distinct_value_generator_;
   Generator<uint64_t> *field_len_generator_;
   DiscreteGenerator<Operation> op_chooser_;
   Generator<uint64_t> *key_chooser_; // transaction key gen
@@ -244,7 +255,6 @@ class CoreWorkload {
   Generator<uint64_t> *scan_len_chooser_;
   CounterGenerator *insert_key_sequence_; // load insert key gen
   AcknowledgedCounterGenerator *transaction_insert_key_sequence_; // transaction insert key gen
-  Generator<uint64_t> *direction_chooser_;
   bool ordered_inserts_;
   size_t record_count_;
   int zero_padding_;

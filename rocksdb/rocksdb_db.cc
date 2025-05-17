@@ -535,18 +535,18 @@ DB::Status RocksdbDB::DeleteSingle(const std::string &table, const std::string &
   return kOK;
 }
 
-DB::Status RocksdbDB::FilterSingle(const std::string &table, const std::vector<Field> &value,
-                                   const std::vector<std::string> *fields, Direction dir,
+DB::Status RocksdbDB::FilterSingle(const std::string &table, const std::vector<Field> &lvalue,
+                                   const std::vector<Field> &rvalue, const std::vector<std::string> *fields,
                                    std::vector<std::vector<Field>> &result) {
   rocksdb::Iterator *db_iter = db_->NewIterator(rocksdb::ReadOptions());
   db_iter->SeekToFirst();
-  const std::vector<std::string> filter_field = {value[0].name};
-  const std::vector<std::string> filter_value = {value[0].value};
+  std::vector<std::string> filter_field = {lvalue[0].name};
+  std::vector<std::string> l_value = {lvalue[0].value};
+  std::vector<std::string> r_value = {rvalue[0].value};
   while (db_iter->Valid()) {
     std::string data = db_iter->value().ToString();
     std::vector<Field> values;
     DeserializeRow(values, data);
-    bool found = false;
     size_t field_id = 0;
     for (; field_id < values.size(); field_id++) {
       if (values[field_id].name == filter_field[0]) {
@@ -554,17 +554,7 @@ DB::Status RocksdbDB::FilterSingle(const std::string &table, const std::vector<F
       }
     }
     assert(field_id < values.size());
-    switch (dir) {
-      case DB::Direction::kGreater:
-        found = (values[field_id].value > filter_value[0]);
-        break;
-      case DB::Direction::kLess:
-        found = (values[field_id].value < filter_value[0]);
-        break;
-      default:
-        throw utils::Exception("Unknown filter direction");
-    }
-    if (found) {
+    if (values[field_id].value >= l_value[0] && values[field_id].value <= r_value[0]) {
       result.push_back(std::vector<Field>());
       std::vector<Field> &result_values = result.back();
       if (fields != nullptr) {
