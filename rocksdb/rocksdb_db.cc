@@ -541,8 +541,8 @@ DB::Status RocksdbDB::DeleteSingle(const std::string &table, const std::string &
 DB::Status RocksdbDB::FilterSingle(const std::string &table, const std::vector<Field> &lvalue,
                                    const std::vector<Field> &rvalue, const std::vector<std::string> *fields,
                                    std::vector<std::vector<Field>> &result) {
-  rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);
-  rocksdb::get_iostats_context()->Reset();
+  // rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);
+  // rocksdb::get_iostats_context()->Reset();
   rocksdb::Iterator *db_iter = db_->NewIterator(rocksdb::ReadOptions());
   db_iter->SeekToFirst();
   std::vector<std::string> filter_field = {lvalue[0].name};
@@ -571,21 +571,21 @@ DB::Status RocksdbDB::FilterSingle(const std::string &table, const std::vector<F
     db_iter->Next();
   }
   // rocksdb::SetPerfLevel(rocksdb::PerfLevel::kDisable);
-  auto IOmessage=rocksdb::get_iostats_context();
-  std::cerr << " thread_pool_id: " << IOmessage->thread_pool_id 
-            << " bytes_written: " << IOmessage->bytes_written
-            << " bytes_read: " << IOmessage->bytes_read
-            << " open_nanos: " << IOmessage->open_nanos
-            << " allocate_nanos: " << IOmessage->allocate_nanos
-            << " range_sync_nanos: " << IOmessage->range_sync_nanos
-            << " fsync_nanos: " << IOmessage->fsync_nanos
-            << " prepare_write_nanos: " << IOmessage->prepare_write_nanos
-            << " logger_nanos: " << IOmessage->logger_nanos
-            << " write_nanos: " << IOmessage->write_nanos
-            << " read_nanos: " << IOmessage->read_nanos
-            << " cpu_write_nanos: " << IOmessage->cpu_write_nanos
-            << " cpu_read_nanos: " << IOmessage->cpu_read_nanos
-            << std::endl;
+  // auto IOmessage=rocksdb::get_iostats_context();
+  // std::cerr << " thread_pool_id: " << IOmessage->thread_pool_id 
+  //           << " bytes_written: " << IOmessage->bytes_written
+  //           << " bytes_read: " << IOmessage->bytes_read
+  //           << " open_nanos: " << IOmessage->open_nanos
+  //           << " allocate_nanos: " << IOmessage->allocate_nanos
+  //           << " range_sync_nanos: " << IOmessage->range_sync_nanos
+  //           << " fsync_nanos: " << IOmessage->fsync_nanos
+  //           << " prepare_write_nanos: " << IOmessage->prepare_write_nanos
+  //           << " logger_nanos: " << IOmessage->logger_nanos
+  //           << " write_nanos: " << IOmessage->write_nanos
+  //           << " read_nanos: " << IOmessage->read_nanos
+  //           << " cpu_write_nanos: " << IOmessage->cpu_write_nanos
+  //           << " cpu_read_nanos: " << IOmessage->cpu_read_nanos
+  //           << std::endl;
   delete db_iter;
   return kOK;
 }
