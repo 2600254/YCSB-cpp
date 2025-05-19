@@ -11,15 +11,13 @@
 #include "core/core_workload.h"
 #include "core/db_factory.h"
 #include "utils/utils.h"
-#include "iostream"
+
 #include <rocksdb/cache.h>
 #include <rocksdb/filter_policy.h>
 #include <rocksdb/merge_operator.h>
 #include <rocksdb/status.h>
 #include <rocksdb/utilities/options_util.h>
 #include <rocksdb/write_batch.h>
-#include <rocksdb/iostats_context.h>
-#include <rocksdb/perf_context.h>
 
 namespace {
   const std::string PROP_NAME = "rocksdb.dbname";
@@ -115,77 +113,26 @@ namespace {
 
 namespace ycsbc {
 
-std::vector<rocksdb::ColumnFamilyHandle *> RocksdbDB::cf_handles_;
-rocksdb::DB *RocksdbDB::db_ = nullptr;
-int RocksdbDB::ref_cnt_ = 0;
-std::mutex RocksdbDB::mu_;
+std::vector<rocksdb::ColumnFamilyHandle *> Laser::cf_handles_;
+rocksdb::DB *Laser::db_ = nullptr;
+int Laser::ref_cnt_ = 0;
+std::mutex Laser::mu_;
 
-void RocksdbDB::Init() {
+void Laser::Init() {
 // merge operator disabled by default due to link error
-#ifdef USE_MERGEUPDATE
-  class YCSBUpdateMerge : public rocksdb::AssociativeMergeOperator {
-   public:
-    virtual bool Merge(const rocksdb::Slice &key, const rocksdb::Slice *existing_value,
-                       const rocksdb::Slice &value, std::string *new_value,
-                       rocksdb::Logger *logger) const override {
-      assert(existing_value);
-
-      std::vector<Field> values;
-      const char *p = existing_value->data();
-      const char *lim = p + existing_value->size();
-      DeserializeRow(values, p, lim);
-
-      std::vector<Field> new_values;
-      p = value.data();
-      lim = p + value.size();
-      DeserializeRow(new_values, p, lim);
-
-      for (Field &new_field : new_values) {
-        bool found = false;
-        for (Field &field : values) {
-          if (field.name == new_field.name) {
-            found = true;
-            field.value = new_field.value;
-            break;
-          }
-        }
-        if (!found) {
-          values.push_back(new_field);
-        }
-      }
-
-      SerializeRow(values, *new_value);
-      return true;
-    }
-
-    virtual const char *Name() const override {
-      return "YCSBUpdateMerge";
-    }
-  };
-#endif
   const std::lock_guard<std::mutex> lock(mu_);
 
   const utils::Properties &props = *props_;
   const std::string format = props.GetProperty(PROP_FORMAT, PROP_FORMAT_DEFAULT);
   if (format == "single") {
     format_ = kSingleRow;
-    method_read_ = &RocksdbDB::ReadSingle;
-    method_scan_ = &RocksdbDB::ScanSingle;
-    method_update_ = &RocksdbDB::UpdateSingle;
-    method_insert_ = &RocksdbDB::InsertSingle;
-    method_delete_ = &RocksdbDB::DeleteSingle;
-    method_filter_ = &RocksdbDB::FilterSingle;
-#ifdef USE_MERGEUPDATE
-    if (props.GetProperty(PROP_MERGEUPDATE, PROP_MERGEUPDATE_DEFAULT) == "true") {
-      method_update_ = &RocksdbDB::MergeSingle;
-    }
-#endif
-  } else {
-    throw utils::Exception("unknown format");
-  }
+    method_read_ = &Laser::ReadSingle;
+    method_scan_ = &Laser::ScanSingle;
+    method_update_ = &Laser::UpdateSingle;
+    method_insert_ = &Laser::InsertSingle;
+    method_delete_ = &Laser::DeleteSingle;
   fieldcount_ = std::stoi(props.GetProperty(CoreWorkload::FIELD_COUNT_PROPERTY,
                                             CoreWorkload::FIELD_COUNT_DEFAULT));
-
   ref_cnt_++;
   if (db_) {
     return;
@@ -193,7 +140,7 @@ void RocksdbDB::Init() {
 
   const std::string &db_path = props.GetProperty(PROP_NAME, PROP_NAME_DEFAULT);
   if (db_path == "") {
-    throw utils::Exception("RocksDB db path is missing");
+    throw utils::Exception("Laser db path is missing");
   }
 
   rocksdb::Options opt;
@@ -208,7 +155,7 @@ void RocksdbDB::Init() {
   if (props.GetProperty(PROP_DESTROY, PROP_DESTROY_DEFAULT) == "true") {
     s = rocksdb::DestroyDB(db_path, opt);
     if (!s.ok()) {
-      throw utils::Exception(std::string("RocksDB DestroyDB: ") + s.ToString());
+      throw utils::Exception(std::string("Laser DestroyDB: ") + s.ToString());
     }
   }
   if (cf_descs.empty()) {
@@ -217,12 +164,11 @@ void RocksdbDB::Init() {
     s = rocksdb::DB::Open(opt, db_path, cf_descs, &cf_handles_, &db_);
   }
   if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Open: ") + s.ToString());
+    throw utils::Exception(std::string("Laser Open: ") + s.ToString());
   }
-  std::cerr << "init rocksdb" << std::endl;
 }
 
-void RocksdbDB::Cleanup() { 
+void Laser::Cleanup() { 
   const std::lock_guard<std::mutex> lock(mu_);
   if (--ref_cnt_) {
     return;
@@ -236,7 +182,7 @@ void RocksdbDB::Cleanup() {
   delete db_;
 }
 
-void RocksdbDB::GetOptions(const utils::Properties &props, rocksdb::Options *opt,
+void Laser::GetOptions(const utils::Properties &props, rocksdb::Options *opt,
                            std::vector<rocksdb::ColumnFamilyDescriptor> *cf_descs) {
   std::string env_uri = props.GetProperty(PROP_ENV_URI, PROP_ENV_URI_DEFAULT);
   std::string fs_uri = props.GetProperty(PROP_FS_URI, PROP_FS_URI_DEFAULT);
@@ -245,7 +191,7 @@ void RocksdbDB::GetOptions(const utils::Properties &props, rocksdb::Options *opt
     rocksdb::Status s = rocksdb::Env::CreateFromUri(rocksdb::ConfigOptions(),
                                                     env_uri, fs_uri, &env, &env_guard);
     if (!s.ok()) {
-      throw utils::Exception(std::string("RocksDB CreateFromUri: ") + s.ToString());
+      throw utils::Exception(std::string("Laser CreateFromUri: ") + s.ToString());
     }
     opt->env = env;
   }
@@ -258,7 +204,7 @@ void RocksdbDB::GetOptions(const utils::Properties &props, rocksdb::Options *opt
     config_options.env = env;
     rocksdb::Status s = rocksdb::LoadOptionsFromFile(config_options, options_file, opt, cf_descs);
     if (!s.ok()) {
-      throw utils::Exception(std::string("RocksDB LoadOptionsFromFile: ") + s.ToString());
+      throw utils::Exception(std::string("Laser LoadOptionsFromFile: ") + s.ToString());
     }
   } else {
     const std::string compression_type = props.GetProperty(PROP_COMPRESSION,
@@ -348,14 +294,6 @@ void RocksdbDB::GetOptions(const utils::Properties &props, rocksdb::Options *opt
       block_cache = rocksdb::NewLRUCache(cache_size);
       table_options.block_cache = block_cache;
     }
-#if ROCKSDB_MAJOR < 8
-    size_t compressed_cache_size = std::stoul(props.GetProperty(PROP_COMPRESSED_CACHE_SIZE,
-                                                                PROP_COMPRESSED_CACHE_SIZE_DEFAULT));
-    if (compressed_cache_size > 0) {
-      block_cache_compressed = rocksdb::NewLRUCache(compressed_cache_size);
-      table_options.block_cache_compressed = block_cache_compressed;
-    }
-#endif
     int bloom_bits = std::stoul(props.GetProperty(PROP_BLOOM_BITS, PROP_BLOOM_BITS_DEFAULT));
     if (bloom_bits > 0) {
       table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(bloom_bits));
@@ -371,7 +309,7 @@ void RocksdbDB::GetOptions(const utils::Properties &props, rocksdb::Options *opt
   }
 }
 
-void RocksdbDB::SerializeRow(const std::vector<Field> &values, std::string &data) {
+void Laser::SerializeRow(const std::vector<Field> &values, std::string &data) {
   for (const Field &field : values) {
     uint32_t len = field.name.size();
     data.append(reinterpret_cast<char *>(&len), sizeof(uint32_t));
@@ -382,7 +320,7 @@ void RocksdbDB::SerializeRow(const std::vector<Field> &values, std::string &data
   }
 }
 
-void RocksdbDB::DeserializeRowFilter(std::vector<Field> &values, const char *p, const char *lim,
+void Laser::DeserializeRowFilter(std::vector<Field> &values, const char *p, const char *lim,
                                      const std::vector<std::string> &fields) {
   std::vector<std::string>::const_iterator filter_iter = fields.begin();
   while (p != lim && filter_iter != fields.end()) {
@@ -403,14 +341,14 @@ void RocksdbDB::DeserializeRowFilter(std::vector<Field> &values, const char *p, 
   assert(values.size() == fields.size());
 }
 
-void RocksdbDB::DeserializeRowFilter(std::vector<Field> &values, const std::string &data,
+void Laser::DeserializeRowFilter(std::vector<Field> &values, const std::string &data,
                                      const std::vector<std::string> &fields) {
   const char *p = data.data();
   const char *lim = p + data.size();
   DeserializeRowFilter(values, p, lim, fields);
 }
 
-void RocksdbDB::DeserializeRow(std::vector<Field> &values, const char *p, const char *lim) {
+void Laser::DeserializeRow(std::vector<Field> &values, const char *p, const char *lim) {
   while (p != lim) {
     assert(p < lim);
     uint32_t len = *reinterpret_cast<const uint32_t *>(p);
@@ -425,13 +363,13 @@ void RocksdbDB::DeserializeRow(std::vector<Field> &values, const char *p, const 
   }
 }
 
-void RocksdbDB::DeserializeRow(std::vector<Field> &values, const std::string &data) {
+void Laser::DeserializeRow(std::vector<Field> &values, const std::string &data) {
   const char *p = data.data();
   const char *lim = p + data.size();
   DeserializeRow(values, p, lim);
 }
 
-DB::Status RocksdbDB::ReadSingle(const std::string &table, const std::string &key,
+DB::Status Laser::ReadSingle(const std::string &table, const std::string &key,
                                  const std::vector<std::string> *fields,
                                  std::vector<Field> &result) {
   std::string data;
@@ -439,7 +377,7 @@ DB::Status RocksdbDB::ReadSingle(const std::string &table, const std::string &ke
   if (s.IsNotFound()) {
     return kNotFound;
   } else if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Get: ") + s.ToString());
+    throw utils::Exception(std::string("Laser Get: ") + s.ToString());
   }
   if (fields != nullptr) {
     DeserializeRowFilter(result, data, *fields);
@@ -450,7 +388,7 @@ DB::Status RocksdbDB::ReadSingle(const std::string &table, const std::string &ke
   return kOK;
 }
 
-DB::Status RocksdbDB::ScanSingle(const std::string &table, const std::string &key, int len,
+DB::Status Laser::ScanSingle(const std::string &table, const std::string &key, int len,
                                  const std::vector<std::string> *fields,
                                  std::vector<std::vector<Field>> &result) {
   rocksdb::Iterator *db_iter = db_->NewIterator(rocksdb::ReadOptions());
@@ -471,14 +409,14 @@ DB::Status RocksdbDB::ScanSingle(const std::string &table, const std::string &ke
   return kOK;
 }
 
-DB::Status RocksdbDB::UpdateSingle(const std::string &table, const std::string &key,
+DB::Status Laser::UpdateSingle(const std::string &table, const std::string &key,
                                    std::vector<Field> &values) {
   std::string data;
   rocksdb::Status s = db_->Get(rocksdb::ReadOptions(), key, &data);
   if (s.IsNotFound()) {
     return kNotFound;
   } else if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Get: ") + s.ToString());
+    throw utils::Exception(std::string("Laser Get: ") + s.ToString());
   }
   std::vector<Field> current_values;
   DeserializeRow(current_values, data);
@@ -500,100 +438,48 @@ DB::Status RocksdbDB::UpdateSingle(const std::string &table, const std::string &
   SerializeRow(current_values, data);
   s = db_->Put(wopt, key, data);
   if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Put: ") + s.ToString());
+    throw utils::Exception(std::string("Laser Put: ") + s.ToString());
   }
   return kOK;
 }
 
-DB::Status RocksdbDB::MergeSingle(const std::string &table, const std::string &key,
+DB::Status Laser::MergeSingle(const std::string &table, const std::string &key,
                                   std::vector<Field> &values) {
   std::string data;
   SerializeRow(values, data);
   rocksdb::WriteOptions wopt;
   rocksdb::Status s = db_->Merge(wopt, key, data);
   if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Merge: ") + s.ToString());
+    throw utils::Exception(std::string("Laser Merge: ") + s.ToString());
   }
   return kOK;
 }
 
-DB::Status RocksdbDB::InsertSingle(const std::string &table, const std::string &key,
+DB::Status Laser::InsertSingle(const std::string &table, const std::string &key,
                                    std::vector<Field> &values) {
   std::string data;
   SerializeRow(values, data);
   rocksdb::WriteOptions wopt;
   rocksdb::Status s = db_->Put(wopt, key, data);
   if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Put: ") + s.ToString());
+    throw utils::Exception(std::string("Laser Put: ") + s.ToString());
   }
   return kOK;
 }
 
-DB::Status RocksdbDB::DeleteSingle(const std::string &table, const std::string &key) {
+DB::Status Laser::DeleteSingle(const std::string &table, const std::string &key) {
   rocksdb::WriteOptions wopt;
   rocksdb::Status s = db_->Delete(wopt, key);
   if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Delete: ") + s.ToString());
+    throw utils::Exception(std::string("LaserLsm Delete: ") + s.ToString());
   }
   return kOK;
 }
 
-DB::Status RocksdbDB::FilterSingle(const std::string &table, const std::vector<Field> &lvalue,
-                                   const std::vector<Field> &rvalue, const std::vector<std::string> *fields,
-                                   std::vector<std::vector<Field>> &result) {
-  // rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);
-  // rocksdb::get_iostats_context()->Reset();
-  rocksdb::Iterator *db_iter = db_->NewIterator(rocksdb::ReadOptions());
-  db_iter->SeekToFirst();
-  std::vector<std::string> filter_field = {lvalue[0].name};
-  std::vector<std::string> l_value = {lvalue[0].value};
-  std::vector<std::string> r_value = {rvalue[0].value};
-  while (db_iter->Valid()) {
-    std::string data = db_iter->value().ToString();
-    std::vector<Field> values;
-    DeserializeRow(values, data);
-    size_t field_id = 0;
-    for (; field_id < values.size(); field_id++) {
-      if (values[field_id].name == filter_field[0]) {
-        break;
-      }
-    }
-    assert(field_id < values.size());
-    if (values[field_id].value >= l_value[0] && values[field_id].value <= r_value[0]) {
-      result.push_back(std::vector<Field>());
-      std::vector<Field> &result_values = result.back();
-      if (fields != nullptr) {
-        DeserializeRowFilter(result_values, data, *fields);
-      } else {
-        result_values = values;
-      }
-    }
-    db_iter->Next();
-  }
-  // rocksdb::SetPerfLevel(rocksdb::PerfLevel::kDisable);
-  // auto IOmessage=rocksdb::get_iostats_context();
-  // std::cerr << " thread_pool_id: " << IOmessage->thread_pool_id 
-  //           << " bytes_written: " << IOmessage->bytes_written
-  //           << " bytes_read: " << IOmessage->bytes_read
-  //           << " open_nanos: " << IOmessage->open_nanos
-  //           << " allocate_nanos: " << IOmessage->allocate_nanos
-  //           << " range_sync_nanos: " << IOmessage->range_sync_nanos
-  //           << " fsync_nanos: " << IOmessage->fsync_nanos
-  //           << " prepare_write_nanos: " << IOmessage->prepare_write_nanos
-  //           << " logger_nanos: " << IOmessage->logger_nanos
-  //           << " write_nanos: " << IOmessage->write_nanos
-  //           << " read_nanos: " << IOmessage->read_nanos
-  //           << " cpu_write_nanos: " << IOmessage->cpu_write_nanos
-  //           << " cpu_read_nanos: " << IOmessage->cpu_read_nanos
-  //           << std::endl;
-  delete db_iter;
-  return kOK;
+DB *NewLaser() {
+  return new Laser;
 }
 
-DB *NewRocksdbDB() {
-  return new RocksdbDB;
-}
-
-const bool registered = DBFactory::RegisterDB("rocksdb", NewRocksdbDB);
+const bool registered = DBFactory::RegisterDB("laser", NewLaser);
 
 } // ycsbc
