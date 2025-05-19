@@ -59,6 +59,8 @@ namespace {
   const std::string PROP_NUM_OF_LOW_COMPACTION_THREAD = "bachopd.num_of_low_compaction_thread";
   const std::string PROP_NUM_OF_LOW_COMPACTION_THREAD_DEFAULT = "4";
 
+  const std::string PROP_MAX_MEMTABLE_NUM = "bachopd.max_memtable_num";
+  const std::string PROP_MAX_MEMTABLE_NUM_DEFAULT = "2";
 } // anonymous
 
 namespace ycsbc {
@@ -66,7 +68,6 @@ namespace ycsbc {
 std::unique_ptr<BACH::DB> BachopdDB::db_;
 int BachopdDB::ref_cnt_ = 0;
 std::mutex BachopdDB::mu_;
-BACH::idx_t column_num = 2;
 
 void BachopdDB::Init() {
   const std::lock_guard<std::mutex> lock(mu_);
@@ -86,7 +87,7 @@ void BachopdDB::Init() {
   std::shared_ptr<BACH::Options> opt = std::make_shared<BACH::Options>();
   GetOptions(props, opt);
 
-  db_ = std::make_unique<BACH::DB>(opt, column_num);
+  db_ = std::make_unique<BACH::DB>(opt, fieldcount_ + 1);
 }
 
 void BachopdDB::Cleanup() { 
@@ -131,13 +132,16 @@ void BachopdDB::GetOptions(const utils::Properties &props, std::shared_ptr<BACH:
 
   size_t num_of_low_compaction_thread = std::stoul(props.GetProperty(PROP_NUM_OF_LOW_COMPACTION_THREAD, PROP_NUM_OF_LOW_COMPACTION_THREAD_DEFAULT));
   opt->NUM_OF_LOW_COMPACTION_THREAD = num_of_low_compaction_thread;
+
+  size_t max_memtable_num = std::stoul(props.GetProperty(PROP_MAX_MEMTABLE_NUM, PROP_MAX_MEMTABLE_NUM_DEFAULT));
+  opt->MAX_MEMTABLE_NUM = max_memtable_num;
 }
 
 
 void BachopdDB::SerializeRow(const std::vector<Field> &values, BACH::Tuple &data){
-  data.row.resize(values.size());
+  data.row.resize(values.size() + 1);
   for (const Field &field : values) {
-    int idx = std::stoi(field.name.c_str() + field_prefix_.size());
+    int idx = std::stoi(field.name.c_str() + field_prefix_.size()) + 1;
     data.row[idx] = field.value;
   }
 }
@@ -145,14 +149,14 @@ void BachopdDB::SerializeRow(const std::vector<Field> &values, BACH::Tuple &data
 void BachopdDB::DeserializeRowFilter(std::vector<Field> &result, const BACH::Tuple &data,
                                      const std::vector<std::string> &fields) {
   for(auto f : fields) {
-    int idx = std::stoi(f.c_str() + field_prefix_.size());
+    int idx = std::stoi(f.c_str() + field_prefix_.size()) + 1;
     result.push_back({f, data.row[idx]});
   }
   assert(result.size() == fields.size());
 }
 
 void BachopdDB::DeserializeRow(std::vector<Field> &result, const BACH::Tuple &data) {
-  for (size_t i = 0; i < data.row.size(); ++i) {
+  for (size_t i = 1; i < data.row.size(); ++i) {
     result.push_back({field_prefix_ + std::to_string(i), data.row[i]});
   }
 }
@@ -177,8 +181,17 @@ DB::Status BachopdDB::Read(const std::string &table, const std::string &key,
 DB::Status BachopdDB::Scan(const std::string &table, const std::string &key, int len,
                                  const std::vector<std::string> *fields,
                                  std::vector<std::vector<Field>> &result) {
-  
-
+  auto z = db_->BeginRelTransaction();
+  auto ans = z.ScanKTuples(len, key);
+  for(auto & data : ans) {
+    result.emplace_back();
+    if (fields != nullptr) {
+      DeserializeRowFilter(result.back(), data, *fields);
+    } else {
+      DeserializeRow(result.back(), data);
+      assert(result.back().size() == static_cast<size_t>(fieldcount_));
+    }
+  }
   return kOK;
 }
 
@@ -218,11 +231,11 @@ DB::Status BachopdDB::Filter(const std::string &table, const std::vector<DB::Fie
   if(fields != nullptr) {
     for (const auto &f : *fields) {
       int i = std::stoi(f.c_str() + field_prefix_.size());
-      z.GetTuplesFromRange(i, lvalue[0].value, rvalue[0].value);
+      z.GetTuplesFromRange(i + 1, lvalue[0].value, rvalue[0].value);
     }
   } else {
     for (size_t i = 0; i < lvalue.size(); ++i) {
-      z.GetTuplesFromRange(i, lvalue[0].value, rvalue[0].value);
+      z.GetTuplesFromRange(i + 1, lvalue[0].value, rvalue[0].value);
     }
   }
   return kOK;

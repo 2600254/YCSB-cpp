@@ -110,6 +110,9 @@ const string CoreWorkload::OPERATION_COUNT_PROPERTY = "operationcount";
 const std::string CoreWorkload::FIELD_NAME_PREFIX = "fieldnameprefix";
 const std::string CoreWorkload::FIELD_NAME_PREFIX_DEFAULT = "field";
 
+const std::string CoreWorkload::KEY_LENGTH_PROPERTY = "keylength";
+const std::string CoreWorkload::KEY_LENGTH_DEFAULT = "16";
+
 const std::string CoreWorkload::ZIPFIAN_CONST_PROPERTY = "zipfian_const";
 
 namespace ycsbc {
@@ -210,6 +213,12 @@ void CoreWorkload::Init(const utils::Properties &p) {
     throw utils::Exception("Unknown request distribution: " + request_dist);
   }
 
+  key_len_ = std::stoi(p.GetProperty(KEY_LENGTH_PROPERTY, KEY_LENGTH_DEFAULT));
+  if (key_len_ <= 4) {
+    throw utils::Exception("Key length must be greater than 4");
+  }
+  key_len_ = key_len_ - 4; 
+
   field_chooser_ = new UniformGenerator(0, field_count_ - 1);
 
   if (scan_len_dist == "uniform") {
@@ -243,6 +252,11 @@ std::string CoreWorkload::BuildKeyName(uint64_t key_num) {
   }
   std::string prekey = "user";
   std::string value = std::to_string(key_num);
+  int cnt = key_len_ / value.size();
+  for (int i = 0; i < cnt; ++i) {
+    prekey.append(value);
+  }
+  prekey.append(value, value.size() + cnt * value.size() - key_len_);
   int fill = std::max(0, zero_padding_ - static_cast<int>(value.size()));
   return prekey.append(fill, '0').append(value);
 }

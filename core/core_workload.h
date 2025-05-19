@@ -189,6 +189,12 @@ class CoreWorkload {
   static const std::string FIELD_NAME_PREFIX;
   static const std::string FIELD_NAME_PREFIX_DEFAULT;
 
+  /// 
+  /// The name of the property for the length of a key in bytes.
+  ///
+  static const std::string KEY_LENGTH_PROPERTY;
+  static const std::string KEY_LENGTH_DEFAULT;
+
   ///
   /// Zipfian constant for transaction key generation.
   ///
@@ -247,6 +253,7 @@ class CoreWorkload {
   bool write_all_fields_;
   int numdistinct_;
   double selection_rate_;
+  int key_len_;
   DistinctValueGenerator *distinct_value_generator_;
   Generator<uint64_t> *field_len_generator_;
   DiscreteGenerator<Operation> op_chooser_;
