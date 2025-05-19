@@ -59,7 +59,7 @@ ifeq ($(BIND_BACHOPD), 1)
 						   $(BACHOPD_DIR)/include/dynamic_bitset/include \
 						   $(BACHOPD_DIR)/include/folly \
 						   $(BACHOPD_DIR)/build/include/folly
-	LDFLAGS += $(foreach dir,$(BACHOPD_LIB_DIR),-L$(dir)) -lbach-opd -lfolly
+	LDFLAGS += $(foreach dir,$(BACHOPD_LIB_DIR),-L$(dir)) -Wl,-rpath,$(BACHOPD_DIR)/build -lbach-opd -lfolly
 	CXXFLAGS += $(foreach dir,$(BACHOPD_INCLUDE_DIR),-I$(dir))
 	SOURCES += $(wildcard bach_opd/*.cc)
 endif
