@@ -6,8 +6,7 @@
 //  Modifications Copyright 2023 Chengye YU <yuchengye2013 AT outlook.com>.
 //
 
-#include "rocksdb_db.h"
-
+#include "laser.h"
 #include "core/core_workload.h"
 #include "core/db_factory.h"
 #include "utils/utils.h"
@@ -20,119 +19,205 @@
 #include <rocksdb/write_batch.h>
 
 namespace {
-  const std::string PROP_NAME = "rocksdb.dbname";
+  const std::string COLUMN_NUM = "column_num";
+  const std::string COLUMN_NUM_DEFAULT = "1";
+
+  const std::string COLUMN_FROM_K = "column_from_k";
+  const std::string COLUMN_FROM_K_DEFAULT = "2";
+
+  const std::string MAX_LEVEL = "max_level"; 
+  const std::string MAX_LEVEL_DEFAULT = "7";
+
+  const std::string PROP_NAME = "laser.dbname";
   const std::string PROP_NAME_DEFAULT = "";
 
-  const std::string PROP_FORMAT = "rocksdb.format";
+  const std::string PROP_FORMAT = "laser.format";
   const std::string PROP_FORMAT_DEFAULT = "single";
 
-  const std::string PROP_MERGEUPDATE = "rocksdb.mergeupdate";
-  const std::string PROP_MERGEUPDATE_DEFAULT = "false";
-
-  const std::string PROP_DESTROY = "rocksdb.destroy";
+  const std::string PROP_DESTROY = "laser.destroy";
   const std::string PROP_DESTROY_DEFAULT = "false";
-
-  const std::string PROP_COMPRESSION = "rocksdb.compression";
+  
+  const std::string PROP_COMPRESSION = "laser.compression";
   const std::string PROP_COMPRESSION_DEFAULT = "no";
-
-  const std::string PROP_MAX_BG_JOBS = "rocksdb.max_background_jobs";
+  
+  const std::string PROP_MAX_BG_JOBS = "laser.max_background_jobs";
   const std::string PROP_MAX_BG_JOBS_DEFAULT = "0";
-
-  const std::string PROP_TARGET_FILE_SIZE_BASE = "rocksdb.target_file_size_base";
+  
+  const std::string PROP_TARGET_FILE_SIZE_BASE = "laser.target_file_size_base";
   const std::string PROP_TARGET_FILE_SIZE_BASE_DEFAULT = "0";
-
-  const std::string PROP_TARGET_FILE_SIZE_MULT = "rocksdb.target_file_size_multiplier";
+  
+  const std::string PROP_TARGET_FILE_SIZE_MULT = "laser.target_file_size_multiplier";
   const std::string PROP_TARGET_FILE_SIZE_MULT_DEFAULT = "0";
-
-  const std::string PROP_MAX_BYTES_FOR_LEVEL_BASE = "rocksdb.max_bytes_for_level_base";
+  
+  const std::string PROP_MAX_BYTES_FOR_LEVEL_BASE = "laser.max_bytes_for_level_base";
   const std::string PROP_MAX_BYTES_FOR_LEVEL_BASE_DEFAULT = "0";
-
-  const std::string PROP_WRITE_BUFFER_SIZE = "rocksdb.write_buffer_size";
+  
+  const std::string PROP_WRITE_BUFFER_SIZE = "laser.write_buffer_size";
   const std::string PROP_WRITE_BUFFER_SIZE_DEFAULT = "0";
-
-  const std::string PROP_MAX_WRITE_BUFFER = "rocksdb.max_write_buffer_number";
-  const std::string PROP_MAX_WRITE_BUFFER_DEFAULT = "0";
-
-  const std::string PROP_COMPACTION_PRI = "rocksdb.compaction_pri";
-  const std::string PROP_COMPACTION_PRI_DEFAULT = "-1";
-
-  const std::string PROP_MAX_OPEN_FILES = "rocksdb.max_open_files";
+  
+  const std::string PROP_MAX_OPEN_FILES = "laser.max_open_files";
   const std::string PROP_MAX_OPEN_FILES_DEFAULT = "-1";
-
-  const std::string PROP_L0_COMPACTION_TRIGGER = "rocksdb.level0_file_num_compaction_trigger";
-  const std::string PROP_L0_COMPACTION_TRIGGER_DEFAULT = "0";
-
-  const std::string PROP_L0_SLOWDOWN_TRIGGER = "rocksdb.level0_slowdown_writes_trigger";
-  const std::string PROP_L0_SLOWDOWN_TRIGGER_DEFAULT = "0";
-
-  const std::string PROP_L0_STOP_TRIGGER = "rocksdb.level0_stop_writes_trigger";
-  const std::string PROP_L0_STOP_TRIGGER_DEFAULT = "0";
-
-  const std::string PROP_USE_DIRECT_WRITE = "rocksdb.use_direct_io_for_flush_compaction";
+  
+  const std::string PROP_MAX_WRITE_BUFFER = "laser.max_write_buffer_number";
+  const std::string PROP_MAX_WRITE_BUFFER_DEFAULT = "0";
+  
+  const std::string PROP_USE_DIRECT_WRITE = "laser.use_direct_io_for_flush_compaction";
   const std::string PROP_USE_DIRECT_WRITE_DEFAULT = "false";
 
-  const std::string PROP_USE_DIRECT_READ = "rocksdb.use_direct_reads";
+  const std::string PROP_USE_DIRECT_READ = "laser.use_direct_reads";
   const std::string PROP_USE_DIRECT_READ_DEFAULT = "false";
-
-  const std::string PROP_USE_MMAP_WRITE = "rocksdb.allow_mmap_writes";
+  
+  const std::string PROP_USE_MMAP_WRITE = "laser.allow_mmap_writes";
   const std::string PROP_USE_MMAP_WRITE_DEFAULT = "false";
-
-  const std::string PROP_USE_MMAP_READ = "rocksdb.allow_mmap_reads";
+  
+  const std::string PROP_USE_MMAP_READ = "laser.allow_mmap_reads";
   const std::string PROP_USE_MMAP_READ_DEFAULT = "false";
 
-  const std::string PROP_CACHE_SIZE = "rocksdb.cache_size";
+  const std::string PROP_CACHE_SIZE = "laser.cache_size";
   const std::string PROP_CACHE_SIZE_DEFAULT = "0";
 
-  const std::string PROP_COMPRESSED_CACHE_SIZE = "rocksdb.compressed_cache_size";
-  const std::string PROP_COMPRESSED_CACHE_SIZE_DEFAULT = "0";
-
-  const std::string PROP_BLOOM_BITS = "rocksdb.bloom_bits";
+  const std::string PROP_BLOOM_BITS = "laser.bloom_bits";
   const std::string PROP_BLOOM_BITS_DEFAULT = "0";
-
-  const std::string PROP_INCREASE_PARALLELISM = "rocksdb.increase_parallelism";
+  
+  const std::string PROP_COMPRESSED_CACHE_SIZE = "laser.compressed_cache_size";
+  const std::string PROP_COMPRESSED_CACHE_SIZE_DEFAULT = "0";
+  
+  const std::string PROP_INCREASE_PARALLELISM = "laser.increase_parallelism";
   const std::string PROP_INCREASE_PARALLELISM_DEFAULT = "false";
-
-  const std::string PROP_OPTIMIZE_LEVELCOMP = "rocksdb.optimize_level_style_compaction";
+  
+  const std::string PROP_OPTIMIZE_LEVELCOMP = "laser.optimize_level_style_compaction";
   const std::string PROP_OPTIMIZE_LEVELCOMP_DEFAULT = "false";
-
-  const std::string PROP_OPTIONS_FILE = "rocksdb.optionsfile";
+  
+  
+  const std::string PROP_COMPACTION_PRI = "laser.compaction_pri";
+  const std::string PROP_COMPACTION_PRI_DEFAULT = "-1";
+  
+  const std::string PROP_L0_COMPACTION_TRIGGER = "laser.level0_file_num_compaction_trigger";
+  const std::string PROP_L0_COMPACTION_TRIGGER_DEFAULT = "0";
+  
+  const std::string PROP_L0_SLOWDOWN_TRIGGER = "laser.level0_slowdown_writes_trigger";
+  const std::string PROP_L0_SLOWDOWN_TRIGGER_DEFAULT = "0";
+  
+  const std::string PROP_L0_STOP_TRIGGER = "laser.level0_stop_writes_trigger";
+  const std::string PROP_L0_STOP_TRIGGER_DEFAULT = "0";
+    
+  const std::string PROP_OPTIONS_FILE = "laser.optionsfile";
   const std::string PROP_OPTIONS_FILE_DEFAULT = "";
-
-  const std::string PROP_ENV_URI = "rocksdb.env_uri";
+  
+  const std::string PROP_ENV_URI = "laser.env_uri";
   const std::string PROP_ENV_URI_DEFAULT = "";
-
-  const std::string PROP_FS_URI = "rocksdb.fs_uri";
+  
+  const std::string PROP_FS_URI = "laser.fs_uri";
   const std::string PROP_FS_URI_DEFAULT = "";
+  
+  const std::string PROP_MERGEUPDATE = "laser.mergeupdate";
+  const std::string PROP_MERGEUPDATE_DEFAULT = "false";
 
   static std::shared_ptr<rocksdb::Env> env_guard;
   static std::shared_ptr<rocksdb::Cache> block_cache;
-#if ROCKSDB_MAJOR < 8
+  #if ROCKSDB_MAJOR < 8
   static std::shared_ptr<rocksdb::Cache> block_cache_compressed;
-#endif
+  #endif
 } // anonymous
 
 namespace ycsbc {
+  using namespace std;
+  using namespace rocksdb;
+  using namespace std::chrono;
 
-std::vector<rocksdb::ColumnFamilyHandle *> Laser::cf_handles_;
-rocksdb::DB *Laser::db_ = nullptr;
-int Laser::ref_cnt_ = 0;
-std::mutex Laser::mu_;
+  const uint32_t cg_size = 2;
 
-void Laser::Init() {
-// merge operator disabled by default due to link error
+  vector<vector<tuple<uint32_t, uint32_t>>> createCGMatrix(int num_levels, uint32_t column_num) {
+    vector<vector<tuple<uint32_t, uint32_t>>> matrix(num_levels);
+
+    for(int i = 0; i < 1; i++) {
+        vector<tuple<uint32_t, uint32_t>> cg_i(1);
+        cg_i[0] = make_tuple(0,column_num-1);
+        matrix[i] = cg_i;
+    }   
+	int num_cgs = column_num/cg_size;	
+	for(int i = 1; i < num_levels; i++) {
+	  vector<tuple<uint32_t, uint32_t>> cg_i(num_cgs);
+          for(int j = 0; j < num_cgs; j++) {
+            cg_i[j] = make_tuple(static_cast<uint32_t>(j*cg_size), static_cast<uint32_t>(j*cg_size + cg_size -1));
+          }
+          matrix[i] = cg_i;
+	}
+    return matrix;
+}
+
+
+  std::vector<rocksdb::ColumnFamilyHandle *> LaserDB::cf_handles_;
+  rocksdb::DB *LaserDB::db_ = nullptr;
+  int LaserDB::ref_cnt_ = 0;
+  std::mutex LaserDB::mu_;
+  
+  void LaserDB::Init() {
+    // merge operator disabled by default due to link error
+    #ifdef USE_MERGEUPDATE
+    class YCSBUpdateMerge : public rocksdb::AssociativeMergeOperator {
+      public:
+      virtual bool Merge(const rocksdb::Slice &key, const rocksdb::Slice *existing_value,
+        const rocksdb::Slice &value, std::string *new_value,
+        rocksdb::Logger *logger) const override {
+          assert(existing_value);
+          
+          std::vector<Field> values;
+          const char *p = existing_value->data();
+          const char *lim = p + existing_value->size();
+      DeserializeRow(values, p, lim);
+
+      std::vector<Field> new_values;
+      p = value.data();
+      lim = p + value.size();
+      DeserializeRow(new_values, p, lim);
+
+      for (Field &new_field : new_values) {
+        bool found = false;
+        for (Field &field : values) {
+          if (field.name == new_field.name) {
+            found = true;
+            field.value = new_field.value;
+            break;
+          }
+        }
+        if (!found) {
+          values.push_back(new_field);
+        }
+      }
+
+      SerializeRow(values, *new_value);
+      return true;
+    }
+
+    virtual const char *Name() const override {
+      return "YCSBUpdateMerge";
+    }
+  };
+#endif
   const std::lock_guard<std::mutex> lock(mu_);
 
   const utils::Properties &props = *props_;
   const std::string format = props.GetProperty(PROP_FORMAT, PROP_FORMAT_DEFAULT);
   if (format == "single") {
     format_ = kSingleRow;
-    method_read_ = &Laser::ReadSingle;
-    method_scan_ = &Laser::ScanSingle;
-    method_update_ = &Laser::UpdateSingle;
-    method_insert_ = &Laser::InsertSingle;
-    method_delete_ = &Laser::DeleteSingle;
+    method_read_ = &LaserDB::ReadSingle;
+    method_scan_ = &LaserDB::ScanSingle;
+    method_update_ = &LaserDB::UpdateSingle;
+    method_insert_ = &LaserDB::InsertSingle;
+    method_delete_ = &LaserDB::DeleteSingle;
+    method_filter_ = &LaserDB::FilterSingle;
+#ifdef USE_MERGEUPDATE
+    if (props.GetProperty(PROP_MERGEUPDATE, PROP_MERGEUPDATE_DEFAULT) == "true") {
+      method_update_ = &LaserDB::MergeSingle;
+    }
+#endif
+  } else {
+    throw utils::Exception("unknown format");
+  }
   fieldcount_ = std::stoi(props.GetProperty(CoreWorkload::FIELD_COUNT_PROPERTY,
                                             CoreWorkload::FIELD_COUNT_DEFAULT));
+
   ref_cnt_++;
   if (db_) {
     return;
@@ -168,7 +253,7 @@ void Laser::Init() {
   }
 }
 
-void Laser::Cleanup() { 
+void LaserDB::Cleanup() { 
   const std::lock_guard<std::mutex> lock(mu_);
   if (--ref_cnt_) {
     return;
@@ -182,30 +267,19 @@ void Laser::Cleanup() {
   delete db_;
 }
 
-void Laser::GetOptions(const utils::Properties &props, rocksdb::Options *opt,
+void LaserDB::GetOptions(const utils::Properties &props, rocksdb::Options *opt,
                            std::vector<rocksdb::ColumnFamilyDescriptor> *cf_descs) {
-  std::string env_uri = props.GetProperty(PROP_ENV_URI, PROP_ENV_URI_DEFAULT);
-  std::string fs_uri = props.GetProperty(PROP_FS_URI, PROP_FS_URI_DEFAULT);
-  rocksdb::Env* env =  rocksdb::Env::Default();;
-  if (!env_uri.empty() || !fs_uri.empty()) {
-    rocksdb::Status s = rocksdb::Env::CreateFromUri(rocksdb::ConfigOptions(),
-                                                    env_uri, fs_uri, &env, &env_guard);
-    if (!s.ok()) {
-      throw utils::Exception(std::string("Laser CreateFromUri: ") + s.ToString());
-    }
-    opt->env = env;
-  }
+  
+  int column_nums = std::stoi(props.GetProperty(COLUMN_NUM, COLUMN_NUM_DEFAULT));
+  int column_from_k = std::stoi(props.GetProperty(COLUMN_FROM_K, COLUMN_FROM_K_DEFAULT));
+  int levels = std::stoi(props.GetProperty(MAX_LEVEL, MAX_LEVEL_DEFAULT));
+  opt->cg_range_matrix= createCGMatrix(levels, column_nums);
+  opt->levels_cg_count = {1, column_nums/cg_size, column_nums/cg_size, column_nums/cg_size, column_nums/cg_size, column_nums/cg_size, column_nums/cg_size, column_nums/cg_size};
+  opt->column_num = column_nums;
+  opt->column_from_k = column_from_k;
 
   const std::string options_file = props.GetProperty(PROP_OPTIONS_FILE, PROP_OPTIONS_FILE_DEFAULT);
   if (options_file != "") {
-    rocksdb::ConfigOptions config_options;
-    config_options.ignore_unknown_options = false;
-    config_options.input_strings_escaped = true;
-    config_options.env = env;
-    rocksdb::Status s = rocksdb::LoadOptionsFromFile(config_options, options_file, opt, cf_descs);
-    if (!s.ok()) {
-      throw utils::Exception(std::string("Laser LoadOptionsFromFile: ") + s.ToString());
-    }
   } else {
     const std::string compression_type = props.GetProperty(PROP_COMPRESSION,
                                                            PROP_COMPRESSION_DEFAULT);
@@ -287,19 +361,6 @@ void Laser::GetOptions(const utils::Properties &props, rocksdb::Options *opt,
     if (props.GetProperty(PROP_USE_MMAP_READ, PROP_USE_MMAP_READ_DEFAULT) == "true") {
       opt->allow_mmap_reads = true;
     }
-
-    rocksdb::BlockBasedTableOptions table_options;
-    size_t cache_size = std::stoul(props.GetProperty(PROP_CACHE_SIZE, PROP_CACHE_SIZE_DEFAULT));
-    if (cache_size > 0) {
-      block_cache = rocksdb::NewLRUCache(cache_size);
-      table_options.block_cache = block_cache;
-    }
-    int bloom_bits = std::stoul(props.GetProperty(PROP_BLOOM_BITS, PROP_BLOOM_BITS_DEFAULT));
-    if (bloom_bits > 0) {
-      table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(bloom_bits));
-    }
-    opt->table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
-
     if (props.GetProperty(PROP_INCREASE_PARALLELISM, PROP_INCREASE_PARALLELISM_DEFAULT) == "true") {
       opt->IncreaseParallelism();
     }
@@ -309,7 +370,7 @@ void Laser::GetOptions(const utils::Properties &props, rocksdb::Options *opt,
   }
 }
 
-void Laser::SerializeRow(const std::vector<Field> &values, std::string &data) {
+void LaserDB::SerializeRow(const std::vector<Field> &values, std::string &data) {
   for (const Field &field : values) {
     uint32_t len = field.name.size();
     data.append(reinterpret_cast<char *>(&len), sizeof(uint32_t));
@@ -320,7 +381,7 @@ void Laser::SerializeRow(const std::vector<Field> &values, std::string &data) {
   }
 }
 
-void Laser::DeserializeRowFilter(std::vector<Field> &values, const char *p, const char *lim,
+void LaserDB::DeserializeRowFilter(std::vector<Field> &values, const char *p, const char *lim,
                                      const std::vector<std::string> &fields) {
   std::vector<std::string>::const_iterator filter_iter = fields.begin();
   while (p != lim && filter_iter != fields.end()) {
@@ -341,14 +402,14 @@ void Laser::DeserializeRowFilter(std::vector<Field> &values, const char *p, cons
   assert(values.size() == fields.size());
 }
 
-void Laser::DeserializeRowFilter(std::vector<Field> &values, const std::string &data,
+void LaserDB::DeserializeRowFilter(std::vector<Field> &values, const std::string &data,
                                      const std::vector<std::string> &fields) {
   const char *p = data.data();
   const char *lim = p + data.size();
   DeserializeRowFilter(values, p, lim, fields);
 }
 
-void Laser::DeserializeRow(std::vector<Field> &values, const char *p, const char *lim) {
+void LaserDB::DeserializeRow(std::vector<Field> &values, const char *p, const char *lim) {
   while (p != lim) {
     assert(p < lim);
     uint32_t len = *reinterpret_cast<const uint32_t *>(p);
@@ -363,13 +424,13 @@ void Laser::DeserializeRow(std::vector<Field> &values, const char *p, const char
   }
 }
 
-void Laser::DeserializeRow(std::vector<Field> &values, const std::string &data) {
+void LaserDB::DeserializeRow(std::vector<Field> &values, const std::string &data) {
   const char *p = data.data();
   const char *lim = p + data.size();
   DeserializeRow(values, p, lim);
 }
 
-DB::Status Laser::ReadSingle(const std::string &table, const std::string &key,
+DB::Status LaserDB::ReadSingle(const std::string &table, const std::string &key,
                                  const std::vector<std::string> *fields,
                                  std::vector<Field> &result) {
   std::string data;
@@ -388,7 +449,7 @@ DB::Status Laser::ReadSingle(const std::string &table, const std::string &key,
   return kOK;
 }
 
-DB::Status Laser::ScanSingle(const std::string &table, const std::string &key, int len,
+DB::Status LaserDB::ScanSingle(const std::string &table, const std::string &key, int len,
                                  const std::vector<std::string> *fields,
                                  std::vector<std::vector<Field>> &result) {
   rocksdb::Iterator *db_iter = db_->NewIterator(rocksdb::ReadOptions());
@@ -409,7 +470,7 @@ DB::Status Laser::ScanSingle(const std::string &table, const std::string &key, i
   return kOK;
 }
 
-DB::Status Laser::UpdateSingle(const std::string &table, const std::string &key,
+DB::Status LaserDB::UpdateSingle(const std::string &table, const std::string &key,
                                    std::vector<Field> &values) {
   std::string data;
   rocksdb::Status s = db_->Get(rocksdb::ReadOptions(), key, &data);
@@ -443,7 +504,7 @@ DB::Status Laser::UpdateSingle(const std::string &table, const std::string &key,
   return kOK;
 }
 
-DB::Status Laser::MergeSingle(const std::string &table, const std::string &key,
+DB::Status LaserDB::MergeSingle(const std::string &table, const std::string &key,
                                   std::vector<Field> &values) {
   std::string data;
   SerializeRow(values, data);
@@ -455,7 +516,7 @@ DB::Status Laser::MergeSingle(const std::string &table, const std::string &key,
   return kOK;
 }
 
-DB::Status Laser::InsertSingle(const std::string &table, const std::string &key,
+DB::Status LaserDB::InsertSingle(const std::string &table, const std::string &key,
                                    std::vector<Field> &values) {
   std::string data;
   SerializeRow(values, data);
@@ -467,19 +528,53 @@ DB::Status Laser::InsertSingle(const std::string &table, const std::string &key,
   return kOK;
 }
 
-DB::Status Laser::DeleteSingle(const std::string &table, const std::string &key) {
+DB::Status LaserDB::DeleteSingle(const std::string &table, const std::string &key) {
   rocksdb::WriteOptions wopt;
   rocksdb::Status s = db_->Delete(wopt, key);
   if (!s.ok()) {
-    throw utils::Exception(std::string("LaserLsm Delete: ") + s.ToString());
+    throw utils::Exception(std::string("Laser Delete: ") + s.ToString());
   }
   return kOK;
 }
 
-DB *NewLaser() {
-  return new Laser;
+DB::Status LaserDB::FilterSingle(const std::string &table, const std::vector<Field> &lvalue,
+                                   const std::vector<Field> &rvalue, const std::vector<std::string> *fields,
+                                   std::vector<std::vector<Field>> &result) {
+  rocksdb::Iterator *db_iter = db_->NewIterator(rocksdb::ReadOptions());
+  db_iter->SeekToFirst();
+  std::vector<std::string> filter_field = {lvalue[0].name};
+  std::vector<std::string> l_value = {lvalue[0].value};
+  std::vector<std::string> r_value = {rvalue[0].value};
+  while (db_iter->Valid()) {
+    std::string data = db_iter->value().ToString();
+    std::vector<Field> values;
+    DeserializeRow(values, data);
+    size_t field_id = 0;
+    for (; field_id < values.size(); field_id++) {
+      if (values[field_id].name == filter_field[0]) {
+        break;
+      }
+    }
+    assert(field_id < values.size());
+    if (values[field_id].value >= l_value[0] && values[field_id].value <= r_value[0]) {
+      result.push_back(std::vector<Field>());
+      std::vector<Field> &result_values = result.back();
+      if (fields != nullptr) {
+        DeserializeRowFilter(result_values, data, *fields);
+      } else {
+        result_values = values;
+      }
+    }
+    db_iter->Next();
+  }
+  delete db_iter;
+  return kOK;
 }
 
-const bool registered = DBFactory::RegisterDB("laser", NewLaser);
+DB *NewLaserDB() {
+  return new LaserDB;
+}
+
+const bool registered = DBFactory::RegisterDB("laser", NewLaserDB);
 
 } // ycsbc
