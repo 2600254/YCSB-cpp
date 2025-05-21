@@ -65,8 +65,16 @@ class CoreWorkload {
   static const std::string DISTINCT_VALUE_NUM_DEFAULT;
 
   ///
+  /// The name of the property for the value distribution.
+  /// Options are "uniform" and "zipfian" (favoring short records).
+  ///
+  static const std::string DISTINCT_VALUE_DISTRIBUTION_PROPERTY;
+  static const std::string DISTINCT_VALUE_DISTRIBUTION_DEFAULT;
+
+  ///
   /// The name of the property for the field length distribution.
   /// Options are "uniform", "zipfian" (favoring short records), and "constant".
+  /// Only works when DISTINCT_VALUE_NUM_PROPERTY > 0.
   ///
   static const std::string FIELD_LENGTH_DISTRIBUTION_PROPERTY;
   static const std::string FIELD_LENGTH_DISTRIBUTION_DEFAULT;
@@ -132,8 +140,7 @@ class CoreWorkload {
   ///
   /// The name of the property for the selection rate of
   /// filter transactions.
-  /// Only works when DISTINCT_VALUE_NUM_PROPERTY > 0 and both of -load
-  /// and -run are specified.
+  /// Only works when DISTINCT_VALUE_NUM_PROPERTY > 0.
   ///
   static const std::string FILTER_SELECTION_RATE_PROPERTY;
   static const std::string FILTER_SELECTION_RATE_DEFAULT;

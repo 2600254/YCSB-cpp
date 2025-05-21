@@ -50,6 +50,9 @@ const string CoreWorkload::FIELD_COUNT_DEFAULT = "10";
 const string CoreWorkload::DISTINCT_VALUE_NUM_PROPERTY = "numdistinct";
 const string CoreWorkload::DISTINCT_VALUE_NUM_DEFAULT = "0";
 
+const string CoreWorkload::DISTINCT_VALUE_DISTRIBUTION_PROPERTY = "distinct_value_dist";
+const string CoreWorkload::DISTINCT_VALUE_DISTRIBUTION_DEFAULT = "uniform";
+
 const string CoreWorkload::FIELD_LENGTH_DISTRIBUTION_PROPERTY = "field_len_dist";
 const string CoreWorkload::FIELD_LENGTH_DISTRIBUTION_DEFAULT = "constant";
 
@@ -124,7 +127,17 @@ void CoreWorkload::Init(const utils::Properties &p) {
   numdistinct_ = std::stoi(p.GetProperty(DISTINCT_VALUE_NUM_PROPERTY, DISTINCT_VALUE_NUM_DEFAULT));
   if(numdistinct_ > 0){
     distinct_value_generator_ = new DistinctValueGenerator();
-    distinct_value_generator_->init(numdistinct_);
+    string distinct_value_dist = p.GetProperty(DISTINCT_VALUE_DISTRIBUTION_PROPERTY,
+                                        DISTINCT_VALUE_DISTRIBUTION_DEFAULT);
+    Generator<uint64_t> *generator = nullptr;
+    if(distinct_value_dist == "uniform") {
+      generator = new UniformGenerator(0, numdistinct_ - 1);
+    } else if(distinct_value_dist == "zipfian") {
+      generator = new ZipfianGenerator(0, numdistinct_ - 1);
+    } else {
+      throw utils::Exception("Unknown distinct value distribution: " + distinct_value_dist);
+    }
+    distinct_value_generator_->init(numdistinct_, generator);
   }
   field_prefix_ = p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT);
   field_len_generator_ = GetFieldLenGenerator(p);
