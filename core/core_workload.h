@@ -140,8 +140,8 @@ class CoreWorkload {
   ///
   /// The name of the property for the selection rate of
   /// filter transactions.
-  /// Only works when DISTINCT_VALUE_NUM_PROPERTY > 0.
-  ///
+  /// Only works when DISTINCT_VALUE_NUM_PROPERTY > 0, 
+  /// and value distribution is uniform.
   static const std::string FILTER_SELECTION_RATE_PROPERTY;
   static const std::string FILTER_SELECTION_RATE_DEFAULT;
 
@@ -189,6 +189,7 @@ class CoreWorkload {
 
   static const std::string RECORD_COUNT_PROPERTY;
   static const std::string OPERATION_COUNT_PROPERTY;
+  static const std::string AP_COUNT_PROPERTY;
 
   ///
   /// Field name prefix.
@@ -215,6 +216,7 @@ class CoreWorkload {
 
   virtual bool DoInsert(DB &db);
   virtual bool DoTransaction(DB &db);
+  virtual bool DoAP(DB &db);
 
   bool read_all_fields() const { return read_all_fields_; }
   bool write_all_fields() const { return write_all_fields_; }

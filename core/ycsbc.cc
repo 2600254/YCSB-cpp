@@ -90,10 +90,22 @@ int main(const int argc, const char *argv[]) {
 
   const bool do_load = (props.GetProperty("doload", "false") == "true");
   const bool do_transaction = (props.GetProperty("dotransaction", "false") == "true");
+  const bool do_htap = (props.GetProperty("dohtap", "false") == "true");
+  const int num_ap_threads = stoi(props.GetProperty("apthreadcount", "1"));
   if (!do_load && !do_transaction) {
     std::cerr << "No operation to do" << std::endl;
     exit(1);
   }
+  if (do_transaction && do_htap) {
+    std::cerr << "Cannot do both transaction and htap" << std::endl;
+    exit(1);
+  }
+  // if (do_htap) {
+  //   if(num_ap_threads < 1) {
+  //     std::cerr << "HTAP need at least 1 ap thread" << std::endl;
+  //     exit(1);
+  //   }
+  // }
 
   const int num_threads = stoi(props.GetProperty("threadcount", "1"));
 
@@ -143,7 +155,7 @@ int main(const int argc, const char *argv[]) {
       }
 
       client_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
-                                             thread_ops, true, true, !do_transaction, &latch, nullptr));
+                                             thread_ops, true, false, false, true, !do_transaction, &latch, nullptr, nullptr));
     }
     assert((int)client_threads.size() == num_threads);
 
@@ -199,7 +211,7 @@ int main(const int argc, const char *argv[]) {
       }
       rate_limiters.push_back(rlim);
       client_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
-                                             thread_ops, false, !do_load, true, &latch, rlim));
+                                             thread_ops, false, false, false, !do_load, true, &latch, rlim, nullptr));
     }
 
     std::future<void> rlim_future;
@@ -225,6 +237,86 @@ int main(const int argc, const char *argv[]) {
     std::cout << "Run throughput(ops/sec): " << sum / runtime << std::endl;
   }
 
+  
+  // htap phase
+  if (do_htap) {
+    // initial ops per second, unlimited if <= 0
+    const int64_t ops_limit = std::stoi(props.GetProperty("limit.ops", "0"));
+    // rate file path for dynamic rate limiting, format "time_stamp_sec new_ops_per_second" per line
+    std::string rate_file = props.GetProperty("limit.file", "");
+
+    const int total_ops = stoi(props[ycsbc::CoreWorkload::AP_COUNT_PROPERTY]);
+
+    ycsbc::utils::CountDownLatch latch(num_threads + num_ap_threads);
+    ycsbc::utils::Timer<double> timer;
+    bool ap_done = false;
+
+    timer.Start();
+    std::future<void> status_future;
+    if (show_status) {
+      status_future = std::async(std::launch::async, StatusThread,
+                                 measurements, &latch, status_interval);
+    }
+    std::vector<std::future<int>> client_ap_threads;
+    std::vector<std::future<int>> client_tp_threads;
+    std::vector<ycsbc::utils::RateLimiter *> rate_limiters;
+    for (int i = 0; i < num_ap_threads; ++i) {
+      int thread_ops = total_ops / num_ap_threads;
+      if (i < total_ops % num_ap_threads) {
+        thread_ops++;
+      }
+      client_ap_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
+                                             thread_ops, false, true, true, !do_load, true, &latch, nullptr, nullptr));
+    }
+    
+    assert((int)client_ap_threads.size() == num_ap_threads);
+
+    for (int i = 0; i < num_threads; ++i) {
+      int thread_ops = INT_MAX;
+      ycsbc::utils::RateLimiter *rlim = nullptr;
+      if (ops_limit > 0 || rate_file != "") {
+        int64_t per_thread_ops = ops_limit / num_threads;
+        rlim = new ycsbc::utils::RateLimiter(per_thread_ops, per_thread_ops);
+      }
+      rate_limiters.push_back(rlim);
+      client_tp_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
+                                             thread_ops, false, true, false, !do_load, true, &latch, rlim, &ap_done));
+    }
+
+    std::future<void> rlim_future;
+    if (rate_file != "") {
+      rlim_future = std::async(std::launch::async, RateLimitThread, rate_file, rate_limiters, &latch);
+    }
+
+    assert((int)client_tp_threads.size() == num_threads);
+
+    int ap_sum = 0;
+    for (auto &n : client_ap_threads) {
+      assert(n.valid());
+      ap_sum += n.get();
+    }
+
+    ap_done = true;
+
+    int tp_sum = 0;
+    for (auto &n : client_tp_threads) {
+      assert(n.valid());
+      tp_sum += n.get();
+    }
+
+    double runtime = timer.End();
+
+    if (show_status) {
+      status_future.wait();
+    }
+
+    std::cout << "Run runtime(sec): " << runtime << std::endl;
+    std::cout << "Run AP operations(ops): " << ap_sum << std::endl;
+    std::cout << "Run AP throughput(ops/sec): " << ap_sum / runtime << std::endl;
+    std::cout << "Run TP operations(ops): " << tp_sum << std::endl;
+    std::cout << "Run TP throughput(ops/sec): " << tp_sum / runtime << std::endl;
+  }
+
   for (int i = 0; i < num_threads; i++) {
     delete dbs[i];
   }
@@ -239,6 +331,9 @@ void ParseCommandLine(int argc, const char *argv[], ycsbc::utils::Properties &pr
     } else if (strcmp(argv[argindex], "-run") == 0 || strcmp(argv[argindex], "-t") == 0) {
       props.SetProperty("dotransaction", "true");
       argindex++;
+    } else if (strcmp(argv[argindex], "-runhtap") == 0) {
+      props.SetProperty("dohtap", "true");
+      argindex++;
     } else if (strcmp(argv[argindex], "-threads") == 0) {
       argindex++;
       if (argindex >= argc) {
@@ -247,6 +342,15 @@ void ParseCommandLine(int argc, const char *argv[], ycsbc::utils::Properties &pr
         exit(0);
       }
       props.SetProperty("threadcount", argv[argindex]);
+      argindex++;
+    } else if (strcmp(argv[argindex], "-apthreads") == 0) {
+      argindex++;
+      if (argindex >= argc) {
+        UsageMessage(argv[0]);
+        std::cerr << "Missing argument value for -apthreads" << std::endl;
+        exit(0);
+      }
+      props.SetProperty("apthreadcount", argv[argindex]);
       argindex++;
     } else if (strcmp(argv[argindex], "-db") == 0) {
       argindex++;
@@ -318,7 +422,9 @@ void UsageMessage(const char *command) {
       "  -load: run the loading phase of the workload\n"
       "  -t: run the transactions phase of the workload\n"
       "  -run: same as -t\n"
+      "  -runhtap: run the HTAP workload\n"
       "  -threads n: execute using n threads (default: 1)\n"
+      "  -apthreads n: number of ap threads in htap workload (default: 1)\n"
       "  -db dbname: specify the name of the DB to use (default: basic)\n"
       "  -P propertyfile: load properties from the given file. Multiple files can\n"
       "                   be specified, and will be processed in the order specified\n"

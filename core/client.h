@@ -20,8 +20,8 @@
 
 namespace ycsbc {
 
-inline int ClientThread(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_ops, bool is_loading,
-                        bool init_db, bool cleanup_db, utils::CountDownLatch *latch, utils::RateLimiter *rlim) {
+inline int ClientThread(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_ops, bool is_loading, bool is_htap, bool is_ap,
+                        bool init_db, bool cleanup_db, utils::CountDownLatch *latch, utils::RateLimiter *rlim, bool *ap_done) {
 
   try {
     if (init_db) {
@@ -33,11 +33,21 @@ inline int ClientThread(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_op
       if (rlim) {
         rlim->Consume(1);
       }
-
-      if (is_loading) {
-        wl->DoInsert(*db);
+      if (is_htap) {
+        if (is_ap) {
+          wl->DoAP(*db);
+        } else {
+          if (ap_done && *ap_done) {
+            break;
+          }
+          wl->DoTransaction(*db);
+        }
       } else {
-        wl->DoTransaction(*db);
+        if (is_loading) {
+          wl->DoInsert(*db);
+        } else {
+          wl->DoTransaction(*db);
+        }
       }
       ops++;
     }

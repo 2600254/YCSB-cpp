@@ -164,7 +164,7 @@ void BachopdDB::DeserializeRow(std::vector<Field> &result, const BACH::Tuple &da
 DB::Status BachopdDB::Read(const std::string &table, const std::string &key,
                                  const std::vector<std::string> *fields,
                                  std::vector<Field> &result) {
-  auto z = db_->BeginRelTransaction();
+  auto z = db_->BeginReadOnlyRelTransaction();
   auto data = z.GetTuple(key);
   if(data.row.empty()){
     return kNotFound;
@@ -181,7 +181,7 @@ DB::Status BachopdDB::Read(const std::string &table, const std::string &key,
 DB::Status BachopdDB::Scan(const std::string &table, const std::string &key, int len,
                                  const std::vector<std::string> *fields,
                                  std::vector<std::vector<Field>> &result) {
-  auto z = db_->BeginRelTransaction();
+  auto z = db_->BeginReadOnlyRelTransaction();
   auto ans = z.ScanKTuples(len, key);
   for(auto & data : ans) {
     result.emplace_back();
@@ -201,7 +201,7 @@ DB::Status BachopdDB::Update(const std::string &table, const std::string &key,
   data.row.push_back(key);
   SerializeRow(values, data);
   auto z = db_->BeginRelTransaction();
-  z.PutTuple(data, key, 1.0);
+  z.PutTuple(data, key);
   return kOK;
 }
 
@@ -211,7 +211,7 @@ DB::Status BachopdDB::Insert(const std::string &table, const std::string &key,
   data.row.push_back(key);
   SerializeRow(values, data);
   auto z = db_->BeginRelTransaction();
-  z.PutTuple(data, key, 1.0);
+  z.PutTuple(data, key);
   return kOK;
 }
 
@@ -227,7 +227,7 @@ DB::Status BachopdDB::Filter(const std::string &table, const std::vector<DB::Fie
                              const std::vector<std::string> *fields, 
                              std::vector<std::vector<Field>> &result) {
   BACH::Tuple data;
-  auto z = db_->BeginRelTransaction();
+  auto z = db_->BeginReadOnlyRelTransaction();
   if(fields != nullptr) {
     for (const auto &f : *fields) {
       int i = std::stoi(f.c_str() + field_prefix_.size());

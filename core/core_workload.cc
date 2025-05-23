@@ -109,6 +109,7 @@ const string CoreWorkload::INSERT_START_DEFAULT = "0";
 
 const string CoreWorkload::RECORD_COUNT_PROPERTY = "recordcount";
 const string CoreWorkload::OPERATION_COUNT_PROPERTY = "operationcount";
+const string CoreWorkload::AP_COUNT_PROPERTY = "apoperationcount";
 
 const std::string CoreWorkload::FIELD_NAME_PREFIX = "fieldnameprefix";
 const std::string CoreWorkload::FIELD_NAME_PREFIX_DEFAULT = "field";
@@ -343,6 +344,12 @@ bool CoreWorkload::DoTransaction(DB &db) {
     default:
       throw utils::Exception("Operation request is not recognized!");
   }
+  return (status == DB::kOK);
+}
+
+
+bool CoreWorkload::DoAP(DB &db) {
+  auto status = TransactionFilter(db);
   return (status == DB::kOK);
 }
 
