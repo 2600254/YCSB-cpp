@@ -97,6 +97,15 @@ namespace {
   const std::string PROP_OPTIMIZE_LEVELCOMP = "rocksdb.optimize_level_style_compaction";
   const std::string PROP_OPTIMIZE_LEVELCOMP_DEFAULT = "false";
 
+  const std::string PROP_ENABLE_BLOB_FILE="rocksdb.enable_blob_files";
+  const std::string PROP_ENABLE_BLOB_FILE_DEFAULT="false";
+
+  const std::string PROP_BLOB_COMPRESSION_TYPE="rocksdb.blob_compression_type";
+  const std::string PROP_BLOB_COMPRESSION_TYPE_DEFAULT="zstd";
+
+  const std::string PROP_ENABLE_BLOB_GARBAGE_COLLECTION="rocksdb.enable_blob_garbage_collection";
+  const std::string PROP_ENABLE_BLOB_GARBAGE_COLLECTION_DEFAULT="true";
+  
   const std::string PROP_OPTIONS_FILE = "rocksdb.optionsfile";
   const std::string PROP_OPTIONS_FILE_DEFAULT = "";
 
@@ -249,6 +258,7 @@ void RocksdbDB::GetOptions(const utils::Properties &props, rocksdb::Options *opt
     }
     opt->env = env;
   }
+  opt->report_bg_io_stats=1;
 
   const std::string options_file = props.GetProperty(PROP_OPTIONS_FILE, PROP_OPTIONS_FILE_DEFAULT);
   if (options_file != "") {
@@ -281,6 +291,27 @@ void RocksdbDB::GetOptions(const utils::Properties &props, rocksdb::Options *opt
       opt->compression = rocksdb::kZSTD;
     } else {
       throw utils::Exception("Unknown compression type");
+    }
+
+    const std::string blob_compression_type = props.GetProperty(PROP_BLOB_COMPRESSION_TYPE,PROP_BLOB_COMPRESSION_TYPE_DEFAULT);
+    if (blob_compression_type == "no") {
+    opt->blob_compression_type = rocksdb::kNoCompression;
+    } else if (blob_compression_type == "snappy") {
+    opt->blob_compression_type = rocksdb::kSnappyCompression;
+    } else if (blob_compression_type == "zlib") {
+    opt->blob_compression_type = rocksdb::kZlibCompression;
+    } else if (blob_compression_type == "bzip2") {
+    opt->blob_compression_type = rocksdb::kBZip2Compression;
+    } else if (blob_compression_type == "lz4") {
+    opt->blob_compression_type = rocksdb::kLZ4Compression;
+    } else if (blob_compression_type == "lz4hc") {
+    opt->blob_compression_type = rocksdb::kLZ4HCCompression;
+    } else if (blob_compression_type == "xpress") {
+    opt->blob_compression_type = rocksdb::kXpressCompression;
+    } else if (blob_compression_type == "zstd") {
+    opt->blob_compression_type = rocksdb::kZSTD;
+    } else {
+    throw utils::Exception("Unknown compression type");
     }
 
     int val = std::stoi(props.GetProperty(PROP_MAX_BG_JOBS, PROP_MAX_BG_JOBS_DEFAULT));
@@ -340,6 +371,12 @@ void RocksdbDB::GetOptions(const utils::Properties &props, rocksdb::Options *opt
     }
     if (props.GetProperty(PROP_USE_MMAP_READ, PROP_USE_MMAP_READ_DEFAULT) == "true") {
       opt->allow_mmap_reads = true;
+    }
+    if (props.GetProperty(PROP_ENABLE_BLOB_FILE, PROP_ENABLE_BLOB_FILE_DEFAULT) == "true") {
+      opt->enable_blob_files = true;
+    }
+    if (props.GetProperty(PROP_ENABLE_BLOB_GARBAGE_COLLECTION, PROP_ENABLE_BLOB_GARBAGE_COLLECTION_DEFAULT) == "true") {
+      opt->enable_blob_garbage_collection = true;
     }
 
     rocksdb::BlockBasedTableOptions table_options;
@@ -435,6 +472,7 @@ DB::Status RocksdbDB::ReadSingle(const std::string &table, const std::string &ke
                                  const std::vector<std::string> *fields,
                                  std::vector<Field> &result) {
   std::string data;
+  rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);
   rocksdb::Status s = db_->Get(rocksdb::ReadOptions(), key, &data);
   if (s.IsNotFound()) {
     return kNotFound;
@@ -452,8 +490,9 @@ DB::Status RocksdbDB::ReadSingle(const std::string &table, const std::string &ke
 
 DB::Status RocksdbDB::ScanSingle(const std::string &table, const std::string &key, int len,
                                  const std::vector<std::string> *fields,
-                                 std::vector<std::vector<Field>> &result) {
+                                 std::vector<std::vector<Field>> &result){      
   rocksdb::Iterator *db_iter = db_->NewIterator(rocksdb::ReadOptions());
+  rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);
   db_iter->Seek(key);
   for (int i = 0; db_iter->Valid() && i < len; i++) {
     std::string data = db_iter->value().ToString();
@@ -472,7 +511,8 @@ DB::Status RocksdbDB::ScanSingle(const std::string &table, const std::string &ke
 }
 
 DB::Status RocksdbDB::UpdateSingle(const std::string &table, const std::string &key,
-                                   std::vector<Field> &values) {
+                                   std::vector<Field> &values) {           
+  rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);                        
   std::string data;
   rocksdb::Status s = db_->Get(rocksdb::ReadOptions(), key, &data);
   if (s.IsNotFound()) {
@@ -507,6 +547,7 @@ DB::Status RocksdbDB::UpdateSingle(const std::string &table, const std::string &
 
 DB::Status RocksdbDB::MergeSingle(const std::string &table, const std::string &key,
                                   std::vector<Field> &values) {
+  rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);
   std::string data;
   SerializeRow(values, data);
   rocksdb::WriteOptions wopt;
@@ -519,6 +560,7 @@ DB::Status RocksdbDB::MergeSingle(const std::string &table, const std::string &k
 
 DB::Status RocksdbDB::InsertSingle(const std::string &table, const std::string &key,
                                    std::vector<Field> &values) {
+  rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);
   std::string data;
   SerializeRow(values, data);
   rocksdb::WriteOptions wopt;
@@ -530,6 +572,7 @@ DB::Status RocksdbDB::InsertSingle(const std::string &table, const std::string &
 }
 
 DB::Status RocksdbDB::DeleteSingle(const std::string &table, const std::string &key) {
+  rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);
   rocksdb::WriteOptions wopt;
   rocksdb::Status s = db_->Delete(wopt, key);
   if (!s.ok()) {
@@ -541,8 +584,7 @@ DB::Status RocksdbDB::DeleteSingle(const std::string &table, const std::string &
 DB::Status RocksdbDB::FilterSingle(const std::string &table, const std::vector<Field> &lvalue,
                                    const std::vector<Field> &rvalue, const std::vector<std::string> *fields,
                                    std::vector<std::vector<Field>> &result) {
-  // rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);
-  // rocksdb::get_iostats_context()->Reset();
+  rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableTimeAndCPUTimeExceptForMutex);
   rocksdb::Iterator *db_iter = db_->NewIterator(rocksdb::ReadOptions());
   db_iter->SeekToFirst();
   std::vector<std::string> filter_field = {lvalue[0].name};
@@ -570,22 +612,6 @@ DB::Status RocksdbDB::FilterSingle(const std::string &table, const std::vector<F
     }
     db_iter->Next();
   }
-  // rocksdb::SetPerfLevel(rocksdb::PerfLevel::kDisable);
-  // auto IOmessage=rocksdb::get_iostats_context();
-  // std::cerr << " thread_pool_id: " << IOmessage->thread_pool_id 
-  //           << " bytes_written: " << IOmessage->bytes_written
-  //           << " bytes_read: " << IOmessage->bytes_read
-  //           << " open_nanos: " << IOmessage->open_nanos
-  //           << " allocate_nanos: " << IOmessage->allocate_nanos
-  //           << " range_sync_nanos: " << IOmessage->range_sync_nanos
-  //           << " fsync_nanos: " << IOmessage->fsync_nanos
-  //           << " prepare_write_nanos: " << IOmessage->prepare_write_nanos
-  //           << " logger_nanos: " << IOmessage->logger_nanos
-  //           << " write_nanos: " << IOmessage->write_nanos
-  //           << " read_nanos: " << IOmessage->read_nanos
-  //           << " cpu_write_nanos: " << IOmessage->cpu_write_nanos
-  //           << " cpu_read_nanos: " << IOmessage->cpu_read_nanos
-  //           << std::endl;
   delete db_iter;
   return kOK;
 }

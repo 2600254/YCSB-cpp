@@ -25,6 +25,7 @@
 #include "utils/rate_limit.h"
 #include "utils/timer.h"
 #include "utils/utils.h"
+#include <climits>
 
 void UsageMessage(const char *command);
 bool StrStartWith(const char *str, const char *pre);

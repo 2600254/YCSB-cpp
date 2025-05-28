@@ -59,10 +59,10 @@ inline void Properties::Load(std::ifstream &input) {
     throw Exception("File not open!");
   }
 
-  while (!input.eof() && !input.bad()) {
+  while (!input.eof() && !input.bad() && !input.fail()) {
     std::string line;
-    std::getline(input, line);
-    if (line[0] == '#') continue;
+    if (!std::getline(input, line)) break;
+    if (line.empty() || line[0] == '#') continue;
     size_t pos = line.find_first_of('=');
     if (pos == std::string::npos) continue;
     SetProperty(Trim(line.substr(0, pos)), Trim(line.substr(pos + 1)));
