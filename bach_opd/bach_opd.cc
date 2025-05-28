@@ -182,15 +182,21 @@ DB::Status BachopdDB::Scan(const std::string &table, const std::string &key, int
                                  const std::vector<std::string> *fields,
                                  std::vector<std::vector<Field>> &result) {
   auto z = db_->BeginReadOnlyRelTransaction();
-  auto ans = z.ScanKTuples(len, key);
-  for(auto & data : ans) {
-    result.emplace_back();
-    if (fields != nullptr) {
-      DeserializeRowFilter(result.back(), data, *fields);
-    } else {
-      DeserializeRow(result.back(), data);
-      assert(result.back().size() == static_cast<size_t>(fieldcount_));
+  auto it = z.GetIter(key);
+  BACH::Tuple data;
+  while(!it.end()) {
+    it.GetTuple(data);
+    if (result.size() >= static_cast<size_t>(len)) {
+      break;
     }
+    auto &ans = result.emplace_back();
+    if (fields != nullptr) {
+      DeserializeRowFilter(ans, data, *fields);
+    } else {
+      DeserializeRow(ans, data);
+      assert(ans.size() == static_cast<size_t>(fieldcount_));
+    }
+    it.next();
   }
   return kOK;
 }

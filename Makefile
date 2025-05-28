@@ -34,7 +34,7 @@ BUILD_HDRHISTOGRAM ?= 1
 ifeq ($(DEBUG_BUILD), 1)
 	CXXFLAGS += -g
 else
-	CXXFLAGS += -O2
+	CXXFLAGS += -O3 -march=native
 	CPPFLAGS += -DNDEBUG
 endif
 

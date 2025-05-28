@@ -126,7 +126,9 @@ void CoreWorkload::Init(const utils::Properties &p) {
 
   field_count_ = std::stoi(p.GetProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_DEFAULT));
   numdistinct_ = std::stoi(p.GetProperty(DISTINCT_VALUE_NUM_PROPERTY, DISTINCT_VALUE_NUM_DEFAULT));
-  if(numdistinct_ > 0){
+  field_prefix_ = p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT);
+  field_len_generator_ = GetFieldLenGenerator(p);
+    if(numdistinct_ > 0){
     distinct_value_generator_ = new DistinctValueGenerator();
     string distinct_value_dist = p.GetProperty(DISTINCT_VALUE_DISTRIBUTION_PROPERTY,
                                         DISTINCT_VALUE_DISTRIBUTION_DEFAULT);
@@ -138,10 +140,11 @@ void CoreWorkload::Init(const utils::Properties &p) {
     } else {
       throw utils::Exception("Unknown distinct value distribution: " + distinct_value_dist);
     }
-    distinct_value_generator_->init(numdistinct_, generator);
+    selection_rate_ = std::stod(p.GetProperty(FILTER_SELECTION_RATE_PROPERTY,
+                                                FILTER_SELECTION_RATE_DEFAULT));
+    distinct_value_generator_->init(numdistinct_, field_len_generator_, 
+      selection_rate_, generator, distinct_value_dist == "zipfian");
   }
-  field_prefix_ = p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT);
-  field_len_generator_ = GetFieldLenGenerator(p);
 
   double read_proportion = std::stod(p.GetProperty(READ_PROPORTION_PROPERTY,
                                                    READ_PROPORTION_DEFAULT));
@@ -155,9 +158,6 @@ void CoreWorkload::Init(const utils::Properties &p) {
       READMODIFYWRITE_PROPORTION_PROPERTY, READMODIFYWRITE_PROPORTION_DEFAULT));
   double filter_proportion = std::stod(p.GetProperty(FILTER_PROPORTION_PROPERTY,
                                                      FILTER_PROPORTION_DEFAULT));
-
-  selection_rate_ = std::stod(p.GetProperty(FILTER_SELECTION_RATE_PROPERTY,
-                                              FILTER_SELECTION_RATE_DEFAULT));
 
   record_count_ = std::stoi(p.GetProperty(RECORD_COUNT_PROPERTY));
   std::string request_dist = p.GetProperty(REQUEST_DISTRIBUTION_PROPERTY,
@@ -283,7 +283,7 @@ void CoreWorkload::BuildValues(std::vector<ycsbc::DB::Field> &values) {
     uint64_t len = field_len_generator_->Next();
     field.value.reserve(len);
     if(numdistinct_){
-      distinct_value_generator_->Next(field.value, len);
+      distinct_value_generator_->Next(field.value);
     }else{
       RandomByteGenerator byte_generator;
       std::generate_n(std::back_inserter(field.value), len, [&]() { return byte_generator.Next(); } );         
@@ -426,7 +426,6 @@ DB::Status CoreWorkload::TransactionInsert(DB &db) {
 
 DB::Status CoreWorkload::TransactionFilter(DB &db) {
   std::vector<DB::Field> lvalue, rvalue;
-  int len = field_len_generator_->Next();
   if (distinct_value_generator_ == nullptr) {
     BuildSingleValue(lvalue);
     BuildSingleValue(rvalue);
@@ -438,7 +437,7 @@ DB::Status CoreWorkload::TransactionFilter(DB &db) {
     lvalue.push_back(DB::Field());
     rvalue.push_back(DB::Field());
     rvalue.back().name = lvalue.back().name = NextFieldName();
-    distinct_value_generator_->Get(lvalue.back().value, rvalue.back().value, len, selection_rate_);
+    distinct_value_generator_->Get(lvalue.back().value, rvalue.back().value);
   }
   std::vector<std::vector<DB::Field>> result;
   if (!read_all_fields()) {

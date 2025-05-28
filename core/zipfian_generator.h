@@ -82,6 +82,7 @@ class ZipfianGenerator : public Generator<uint64_t> {
   uint64_t last_value_;
   std::mutex mutex_;
   bool allow_count_decrease_;
+  friend class DistinctValueGenerator;
 };
 
 inline uint64_t ZipfianGenerator::Next(uint64_t num) {
