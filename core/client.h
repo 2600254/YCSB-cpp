@@ -29,6 +29,7 @@ inline int ClientThread(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_op
     }
 
     int ops = 0;
+    auto start_time = std::chrono::high_resolution_clock::now();;
     for (int i = 0; i < num_ops; ++i) {
       if (rlim) {
         rlim->Consume(1);
@@ -36,6 +37,10 @@ inline int ClientThread(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_op
       if (is_htap) {
         if (is_ap) {
           wl->DoAP(*db);
+          auto now_time = std::chrono::high_resolution_clock::now();
+          std::cout<< "AP operation done at "<< 
+            std::chrono::duration_cast<std::chrono::microseconds>(
+              now_time - start_time).count() << " microseconds" << std::endl;
         } else {
           if (ap_done && *ap_done) {
             break;
