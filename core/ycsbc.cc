@@ -93,7 +93,7 @@ int main(const int argc, const char *argv[]) {
   const bool do_transaction = (props.GetProperty("dotransaction", "false") == "true");
   const bool do_htap = (props.GetProperty("dohtap", "false") == "true");
   const int num_ap_threads = stoi(props.GetProperty("apthreadcount", "1"));
-  if (!do_load && !do_transaction) {
+  if (!do_load && !do_transaction && !do_htap) {
     std::cerr << "No operation to do" << std::endl;
     exit(1);
   }
@@ -156,7 +156,7 @@ int main(const int argc, const char *argv[]) {
       }
 
       client_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
-                                             thread_ops, true, false, false, true, !do_transaction, &latch, nullptr, nullptr));
+                                             thread_ops, true, false, false, true, !do_transaction, &latch, nullptr, nullptr, nullptr));
     }
     assert((int)client_threads.size() == num_threads);
 
@@ -212,7 +212,7 @@ int main(const int argc, const char *argv[]) {
       }
       rate_limiters.push_back(rlim);
       client_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
-                                             thread_ops, false, false, false, !do_load, true, &latch, rlim, nullptr));
+                                             thread_ops, false, false, false, !do_load, true, &latch, rlim, nullptr, nullptr));
     }
 
     std::future<void> rlim_future;
@@ -251,6 +251,17 @@ int main(const int argc, const char *argv[]) {
     ycsbc::utils::CountDownLatch latch(num_threads + num_ap_threads);
     ycsbc::utils::Timer<double> timer;
     bool ap_done = false;
+    bool* time_limit = nullptr;
+    int htap_time = -1;
+
+    if (props.ContainsKey("htaptime")) {
+      htap_time = std::stoi(props["htaptime"]);
+      if (htap_time < 0) {
+        std::cerr << "Invalid htap time: " << htap_time << std::endl;
+        exit(1);
+      }
+      time_limit = new bool(false);
+    }
 
     timer.Start();
     std::future<void> status_future;
@@ -262,12 +273,16 @@ int main(const int argc, const char *argv[]) {
     std::vector<std::future<int>> client_tp_threads;
     std::vector<ycsbc::utils::RateLimiter *> rate_limiters;
     for (int i = 0; i < num_ap_threads; ++i) {
-      int thread_ops = total_ops / num_ap_threads;
+      int thread_ops;
+      if (htap_time > 0)
+        thread_ops = INT_MAX;
+      else
+        thread_ops = total_ops / num_ap_threads;
       if (i < total_ops % num_ap_threads) {
         thread_ops++;
       }
       client_ap_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
-                                             thread_ops, false, true, true, !do_load, true, &latch, nullptr, nullptr));
+                                             thread_ops, false, true, true, !do_load, true, &latch, nullptr, nullptr, time_limit));
     }
     
     assert((int)client_ap_threads.size() == num_ap_threads);
@@ -281,7 +296,7 @@ int main(const int argc, const char *argv[]) {
       }
       rate_limiters.push_back(rlim);
       client_tp_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
-                                             thread_ops, false, true, false, !do_load, true, &latch, rlim, &ap_done));
+                                             thread_ops, false, true, false, !do_load, true, &latch, rlim, &ap_done, nullptr));
     }
 
     std::future<void> rlim_future;
@@ -290,6 +305,11 @@ int main(const int argc, const char *argv[]) {
     }
 
     assert((int)client_tp_threads.size() == num_threads);
+
+    if (htap_time > 0) {
+      std::this_thread::sleep_for(std::chrono::seconds(htap_time));
+      *time_limit = true;
+    }
 
     int ap_sum = 0;
     for (auto &n : client_ap_threads) {
@@ -316,6 +336,9 @@ int main(const int argc, const char *argv[]) {
     std::cout << "Run AP throughput(ops/sec): " << ap_sum / runtime << std::endl;
     std::cout << "Run TP operations(ops): " << tp_sum << std::endl;
     std::cout << "Run TP throughput(ops/sec): " << tp_sum / runtime << std::endl;
+    if(time_limit) {
+      delete time_limit;
+    }
   }
 
   for (int i = 0; i < num_threads; i++) {
@@ -334,6 +357,15 @@ void ParseCommandLine(int argc, const char *argv[], ycsbc::utils::Properties &pr
       argindex++;
     } else if (strcmp(argv[argindex], "-runhtap") == 0) {
       props.SetProperty("dohtap", "true");
+      argindex++;
+    } else if (strcmp(argv[argindex], "-htaptime") == 0) {
+      argindex++;
+      if (argindex >= argc) {
+        UsageMessage(argv[0]);
+        std::cerr << "Missing argument value for -htaptime" << std::endl;
+        exit(0);
+      }
+      props.SetProperty("htaptime", argv[argindex]);
       argindex++;
     } else if (strcmp(argv[argindex], "-threads") == 0) {
       argindex++;
@@ -424,8 +456,10 @@ void UsageMessage(const char *command) {
       "  -t: run the transactions phase of the workload\n"
       "  -run: same as -t\n"
       "  -runhtap: run the HTAP workload\n"
+      "  -htaptime n: run HTAP workload for n seconds (default: no time limit)\n"
       "  -threads n: execute using n threads (default: 1)\n"
       "  -apthreads n: number of ap threads in htap workload (default: 1)\n"
+      "                works when htaptime is not set\n"
       "  -db dbname: specify the name of the DB to use (default: basic)\n"
       "  -P propertyfile: load properties from the given file. Multiple files can\n"
       "                   be specified, and will be processed in the order specified\n"

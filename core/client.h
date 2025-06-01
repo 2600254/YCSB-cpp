@@ -21,7 +21,7 @@
 namespace ycsbc {
 
 inline int ClientThread(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_ops, bool is_loading, bool is_htap, bool is_ap,
-                        bool init_db, bool cleanup_db, utils::CountDownLatch *latch, utils::RateLimiter *rlim, bool *ap_done) {
+                        bool init_db, bool cleanup_db, utils::CountDownLatch *latch, utils::RateLimiter *rlim, bool *ap_done, bool *time_limit) {
 
   try {
     if (init_db) {
@@ -36,6 +36,9 @@ inline int ClientThread(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_op
       }
       if (is_htap) {
         if (is_ap) {
+          if(time_limit && *time_limit) {
+            break;
+          }
           wl->DoAP(*db);
           auto now_time = std::chrono::high_resolution_clock::now();
           std::cout<< "AP operation done at "<< 

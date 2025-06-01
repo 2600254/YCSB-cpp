@@ -136,7 +136,12 @@ void CoreWorkload::Init(const utils::Properties &p) {
     if(distinct_value_dist == "uniform") {
       generator = new UniformGenerator(0, numdistinct_ - 1);
     } else if(distinct_value_dist == "zipfian") {
-      generator = new ZipfianGenerator(0, numdistinct_ - 1);
+      if (p.ContainsKey(ZIPFIAN_CONST_PROPERTY)) {
+        double zipfian_const = std::stod(p.GetProperty(ZIPFIAN_CONST_PROPERTY));
+        generator = new ZipfianGenerator(0, numdistinct_ - 1, zipfian_const);
+      } else {
+        generator = new ZipfianGenerator(numdistinct_ - 1);
+      }
     } else {
       throw utils::Exception("Unknown distinct value distribution: " + distinct_value_dist);
     }
