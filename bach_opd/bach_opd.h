@@ -50,10 +50,10 @@ class BachopdDB : public DB{
   inline void SerializeRow(const std::vector<Field> &values, BACH::Tuple &data);
 
 
-  inline void DeserializeRowFilter(std::vector<Field> &values, const BACH::Tuple &data,
+  inline void DeserializeRowFilter(std::vector<Field> &values, BACH::Tuple &data,
                                    const std::vector<std::string> &fields);
 
-  inline void DeserializeRow(std::vector<Field> &values, const BACH::Tuple &data);
+  inline void DeserializeRow(std::vector<Field> &values, BACH::Tuple &data);
 
   int fieldcount_;
 

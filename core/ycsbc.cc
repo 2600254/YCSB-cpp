@@ -156,7 +156,7 @@ int main(const int argc, const char *argv[]) {
       }
 
       client_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
-                                             thread_ops, true, false, false, true, !do_transaction, &latch, nullptr, nullptr, nullptr));
+                                             thread_ops, true, false, false, true, !do_transaction && !do_htap, &latch, nullptr, nullptr, nullptr));
     }
     assert((int)client_threads.size() == num_threads);
 

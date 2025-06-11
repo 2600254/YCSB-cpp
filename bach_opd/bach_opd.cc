@@ -146,18 +146,22 @@ void BachopdDB::SerializeRow(const std::vector<Field> &values, BACH::Tuple &data
   }
 }
 
-void BachopdDB::DeserializeRowFilter(std::vector<Field> &result, const BACH::Tuple &data,
+void BachopdDB::DeserializeRowFilter(std::vector<Field> &result, BACH::Tuple &data,
                                      const std::vector<std::string> &fields) {
-  for(auto f : fields) {
+  for(auto &f : fields) {
     int idx = std::stoi(f.c_str() + field_prefix_.size()) + 1;
-    result.push_back({f, data.row[idx]});
+    result.emplace_back();
+    result.back().name = f;
+    result.back().value = std::move(data.row[idx]);
   }
   assert(result.size() == fields.size());
 }
 
-void BachopdDB::DeserializeRow(std::vector<Field> &result, const BACH::Tuple &data) {
+void BachopdDB::DeserializeRow(std::vector<Field> &result, BACH::Tuple &data) {
   for (size_t i = 1; i < data.row.size(); ++i) {
-    result.push_back({field_prefix_ + std::to_string(i), data.row[i]});
+    result.emplace_back();
+    result.back().name = field_prefix_ + std::to_string(i);
+    result.back().value = std::move(data.row[i]);
   }
 }
 
@@ -232,16 +236,25 @@ DB::Status BachopdDB::Filter(const std::string &table, const std::vector<DB::Fie
                              const std::vector<DB::Field> &rvalue, 
                              const std::vector<std::string> *fields, 
                              std::vector<std::vector<Field>> &result) {
-  BACH::Tuple data;
   auto z = db_->BeginReadOnlyRelTransaction();
+  std::vector<BACH::Tuple> tuples;
   if(fields != nullptr) {
     for (const auto &f : *fields) {
       int i = std::stoi(f.c_str() + field_prefix_.size());
-      z.GetTuplesFromRange(i + 1, lvalue[0].value, rvalue[0].value);
+      z.GetTuplesFromRange(i + 1, lvalue[0].value, rvalue[0].value, tuples);
     }
   } else {
     for (size_t i = 0; i < lvalue.size(); ++i) {
-      z.GetTuplesFromRange(i + 1, lvalue[0].value, rvalue[0].value);
+      z.GetTuplesFromRange(i + 1, lvalue[0].value, rvalue[0].value, tuples);
+    }
+  }
+  for (auto &t : tuples) {
+    auto &ans = result.emplace_back();
+    if (fields != nullptr) {
+      DeserializeRowFilter(ans, t, *fields);
+    } else {
+      DeserializeRow(ans, t);
+      assert(ans.size() == static_cast<size_t>(fieldcount_));
     }
   }
   return kOK;

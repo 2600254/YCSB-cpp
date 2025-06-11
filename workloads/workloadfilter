@@ -11,8 +11,8 @@
 # instead interspersed with posts from lots of other threads. The way the YCSB client works is that it will pick a start
 # key, and then request a number of records; this works fine even for hashed insertion.
 
-recordcount=8388608
-numdistinct=10000
+recordcount=64000000
+numdistinct=64000
 operationcount=10
 fieldcount=1
 fieldlength=128
